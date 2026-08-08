@@ -1,5 +1,5 @@
 // ============================================================
-//  BLOCK PUZZLE  -  game.js
+//  TILE & TIDE  -  game.js
 //  替换素材指引：
 //    填充方块 →  drawFilledCell()  中将 fillStyle 替换为 drawImage
 //    方块预览 →  renderPreviewCanvases()  中替换绘制逻辑
@@ -10,19 +10,31 @@
 let currentTheme = localStorage.getItem('blockPuzzleTheme') || 'dark';
 function applyTheme(t) {
   currentTheme = t;
-  document.body.classList.toggle('light', t === 'light');
+  const skin = SKIN_THEMES.find(s => s.id === t);
+  // 重置 body class（清除 light、forest 等所有主题类）
+  document.body.classList.remove('light');
+  // 应用主体 class（dark 为默认，无需 class）
+  if (skin && skin.cssClass) document.body.classList.add(skin.cssClass);
+  // 自定义主题：注入 CSS 变量
+  const styleEl = document.getElementById('themeVars');
+  if (skin && skin.cssVars) {
+    let css = ':root { ';
+    for (const [k, v] of Object.entries(skin.cssVars)) css += `${k}:${v}; `;
+    css += '}';
+    styleEl.textContent = css;
+  } else if (styleEl) {
+    styleEl.textContent = '';
+  }
   localStorage.setItem('blockPuzzleTheme', t);
-  // 更新主题按钮选中态
-  document.querySelectorAll('#themeToggle .theme-option').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.theme === t);
-  });
+  // 同步设置面板中的主题选择器
+  const themeSel = document.getElementById('settingThemeSkin');
+  if (themeSel) themeSel.value = t;
 }
 
 /** 获取当前主题下的渲染颜色 */
 function themeColors() {
-  return currentTheme === 'light'
-    ? { gridBg:'#dde0ea', emptyCell:'#e8eaf2', gridLine:'#c5c8d4', gridBorder:'#b0b5cc', cellHighlight:'rgba(255,255,255,0.25)', cellShadow:'rgba(0,0,0,0.1)', cellBorder:'rgba(0,0,0,0.07)', previewValidFill:'rgba(80,200,100,0.3)', previewValidStroke:'rgba(80,200,100,0.55)', previewInvalidFill:'rgba(255,90,80,0.25)', previewInvalidStroke:'rgba(255,90,80,0.45)' }
-    : { gridBg:'#13132c', emptyCell:'#1c1c3a', gridLine:'#2a2a52', gridBorder:'#3a3a65', cellHighlight:'rgba(255,255,255,0.2)', cellShadow:'rgba(0,0,0,0.18)', cellBorder:'rgba(255,255,255,0.12)', previewValidFill:'rgba(80,220,120,0.35)', previewValidStroke:'rgba(80,220,120,0.6)', previewInvalidFill:'rgba(255,90,90,0.3)', previewInvalidStroke:'rgba(255,90,90,0.5)' };
+  const skin = SKIN_THEMES.find(s => s.id === activeSkin.theme);
+  return (skin && skin.boardColors) ? skin.boardColors : SKIN_THEMES[0].boardColors;
 }
 let audioCtx = null;
 let isMuted = localStorage.getItem('blockPuzzleMuted') === '1';
@@ -32,10 +44,25 @@ function syncSoundToggleUI() {
   if (toggle) toggle.checked = !isMuted;
   if (icon) icon.textContent = isMuted ? '🔇' : '🔊';
 }
+let bgm = null;
+let bgmVolume = parseFloat(localStorage.getItem('blockPuzzleVolume') || '0.35');
+function playBgm() {
+  if (isMuted) return;
+  if (!bgm) bgm = document.getElementById('bgm');
+  if (!bgm) return;
+  bgm.volume = bgmVolume;
+  bgm.play().catch(() => {});
+}
+function pauseBgm() {
+  if (!bgm) bgm = document.getElementById('bgm');
+  if (bgm) bgm.pause();
+}
+
 function initAudio() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
+  playBgm();
 }
 
 function playTone(freq, duration, type = 'sine', vol = 0.08) {
@@ -71,8 +98,9 @@ function sfxGameOver() {
 // ===== 常量 =====
 const GRID_SIZE  = 8;
 const CELL_SIZE  = 58;
-const PADDING    = 18;
-const CANVAS_SIZE = PADDING * 2 + GRID_SIZE * CELL_SIZE; // 500
+const PADDING    = 24;
+const CANVAS_SIZE = PADDING * 2 + GRID_SIZE * CELL_SIZE; // 512
+let dpr = window.devicePixelRatio || 1;
 
 // ===== 方块颜色（后期替换为图片时此处改为素材路径） =====
 const COLORS = [
@@ -142,22 +170,265 @@ const SEAFOOD_PIECES = [
 // 所有海鲜 ID（数组索引）
 const SEAFOOD_IDS = SEAFOOD_PIECES.map((_, i) => i);
 
+// ===== 皮肤系统数据 =====
+// id = localStorage key, imgSrc 为空表示纯色默认
+const SKIN_BOARDS = [
+  { id:'classic_blue',  name:'Deep Blue',    price:0,   imgSrc:null,                               desc:'Default ocean depth' },
+  { id:'sunset_beach',  name:'Sunset Beach',  price:80,  imgSrc:'assets/skins/board/sunset_beach.png', desc:'Warm tropical shore' },
+  { id:'arctic',        name:'Arctic',        price:100, imgSrc:'assets/skins/board/arctic.png',       desc:'Ice-cold underwater' },
+  { id:'wood',          name:'Wood',          price:100, imgSrc:'assets/skins/board/wood.png',         desc:'Warm walnut frame' },
+];
+
+const SKIN_PIECES = [
+  { id:'classic',    name:'Classic',    price:0,   imgSrc:null,                              desc:'Classic colored blocks' },
+  { id:'glass',      name:'Glass',      price:80,  imgSrc:'assets/skins/piece/glass_tile.png',   desc:'Smooth glass finish' },
+  { id:'metal',      name:'Metal',      price:100, imgSrc:'assets/skins/piece/metal_tile.png',   desc:'Sleek metallic blocks' },
+  { id:'abalone',    name:'Abalone',    price:120, imgSrc:'assets/skins/piece/abalone_tile.png', desc:'Shimmering shell inlay' },
+  { id:'driftwood',  name:'Driftwood',  price:120, imgSrc:'assets/skins/piece/driftwood_tile.png',desc:'Weathered wood grain' },
+];
+
+const SKIN_CUSTOMERS = [
+  { id:'shoppers',   name:'Shoppers',   price:0,   dir:'assets/skins/customer/shoppers/',  imgs:['grandma','grandpa','housewife','man'],                                    desc:'Everyday market crowd' },
+  { id:'merfolk',    name:'Merfolk',    price:100, dir:'assets/skins/customer/merfolk/',   imgs:['mermaid','merman','sea_king','sea_queen'],                                   desc:'Mythical sea dwellers' },
+  { id:'fishermen',  name:'Fishermen',  price:100, dir:'assets/skins/customer/fishermen/', imgs:['fisherman_old','fisherman_young','fisherwoman'],                                desc:'Seaside anglers' },
+  { id:'pirates',    name:'Pirates',    price:120, dir:'assets/skins/customer/pirates/',   imgs:['pirate_captain','pirate_sailor','pirate_parrot'],                               desc:'Swashbuckling crew' },
+];
+
+const SKIN_THEMES = [
+  {
+    id:'dark', name:'Dark', price:0, cssClass:null,
+    desc:'Deep cosmic blue-purple',
+    boardColors:{ gridBg:'#13132c', emptyCell:'#1c1c3a', gridLine:'#2a2a52', gridBorder:'#3a3a65', cellHighlight:'rgba(255,255,255,0.2)', cellShadow:'rgba(0,0,0,0.18)', cellBorder:'rgba(255,255,255,0.12)', previewValidFill:'rgba(80,220,120,0.35)', previewValidStroke:'rgba(80,220,120,0.6)', previewInvalidFill:'rgba(255,90,90,0.3)', previewInvalidStroke:'rgba(255,90,90,0.5)' }
+  },
+  {
+    id:'light', name:'Light', price:0, cssClass:'light',
+    desc:'Clean airy gray-white',
+    boardColors:{ gridBg:'#e5e8f2', emptyCell:'#eff2f8', gridLine:'#d0d4de', gridBorder:'#bcc0d0', cellHighlight:'rgba(255,255,255,0.3)', cellShadow:'rgba(0,0,0,0.06)', cellBorder:'rgba(0,0,0,0.05)', previewValidFill:'rgba(100,210,130,0.25)', previewValidStroke:'rgba(100,210,130,0.45)', previewInvalidFill:'rgba(255,100,90,0.2)', previewInvalidStroke:'rgba(255,100,90,0.35)' }
+  },
+  {
+    id:'forest', name:'Forest', price:200,
+    desc:'Woodsy pine & moss',
+    cssVars:{ '--bg-body':'#c8e0c0', '--bg-card':'#d8edd0', '--bg-card-hover':'#e0f2d8', '--bg-card-selected':'#d4e8cc', '--border':'#a8c8a0', '--border-focus':'#8ab880', '--border-selected':'#6aac60', '--text':'#2a3a28', '--text-dim':'#5a7a55', '--text-muted':'#7a9875', '--text-best':'#4a6a45', '--score-gold':'#c8a030', '--btn-buy-bg':'#6aac60', '--btn-buy-color':'#fff', '--combo-pink':'#d06078', '--grid-bg':'#dae8d5', '--grid-line':'#c0d4ba', '--grid-border':'#a8c0a2', '--empty-cell':'#e8f2e5', '--overlay-bg':'rgba(180,210,170,0.75)', '--overlay-card-bg':'#d8edd0', '--overlay-card-border':'#b0ccaa', '--start-bg':'radial-gradient(ellipse at center,#d0e8c8 0%,#b0c8a8 100%)', '--start-card-bg':'rgba(216,237,208,0.8)', '--start-card-border':'#a8c8a0', '--start-subtitle':'#5a7a55', '--start-hint':'#7a9875', '--start-credits':'#8aaa85', '--ghost-text':'#6a8a65', '--ghost-border':'#b8d0b0', '--ghost-hover-text':'#3a4a35', '--ghost-hover-border':'#88a880', '--shadow':'rgba(150,180,140,0.25)', '--selected-glow':'rgba(106,172,96,0.25)', '--game-title-gradient':'linear-gradient(135deg,#6aac60,#90c880)', '--settings-bg':'#d8edd0', '--settings-border':'#a8c8a0', '--settings-text':'#2a3a28', '--toggle-bg':'#b0c8a8', '--toggle-dot':'#fff', '--canvas-shadow':'0 0 40px rgba(100,160,80,0.1),0 4px 20px rgba(80,120,60,0.15)' },
+    boardColors:{ gridBg:'#dae8d5', emptyCell:'#e8f2e5', gridLine:'#c0d4ba', gridBorder:'#a8c0a2', cellHighlight:'rgba(255,255,255,0.25)', cellShadow:'rgba(120,150,110,0.15)', cellBorder:'rgba(120,150,110,0.12)', previewValidFill:'rgba(80,200,100,0.25)', previewValidStroke:'rgba(80,200,100,0.45)', previewInvalidFill:'rgba(255,100,90,0.2)', previewInvalidStroke:'rgba(255,100,90,0.35)' }
+  },
+  {
+    id:'midnight_gold', name:'Midnight Gold', price:250,
+    desc:'Black & gilded accents',
+    cssVars:{ '--bg-body':'#1a1610', '--bg-card':'#252018', '--bg-card-hover':'#2e281e', '--bg-card-selected':'#2a241a', '--border':'#3d3528', '--border-focus':'#6a5e40', '--border-selected':'#e8c848', '--text':'#e8e0d0', '--text-dim':'#9a9080', '--text-muted':'#6a6058', '--text-best':'#a8a090', '--score-gold':'#f0d060', '--btn-buy-bg':'#f0d060', '--btn-buy-color':'#222', '--combo-pink':'#d48888', '--grid-bg':'#2a2418', '--grid-line':'#6a5e30', '--grid-border':'#8a7a40', '--empty-cell':'#383020', '--overlay-bg':'rgba(0,0,0,0.7)', '--overlay-card-bg':'#252018', '--overlay-card-border':'#4a3e30', '--start-bg':'radial-gradient(ellipse at center,#201c12 0%,#0e0c08 100%)', '--start-card-bg':'rgba(34,30,20,0.75)', '--start-card-border':'#3d3528', '--start-subtitle':'#8a7e68', '--start-hint':'#6a6050', '--start-credits':'#504838', '--ghost-text':'#807868', '--ghost-border':'#3d3528', '--ghost-hover-text':'#d4c8a8', '--ghost-hover-border':'#6a5e48', '--shadow':'rgba(0,0,0,0.45)', '--selected-glow':'rgba(232,200,72,0.35)', '--game-title-gradient':'linear-gradient(135deg,#e8c848,#f0d870)', '--settings-bg':'#252018', '--settings-border':'#3d3528', '--settings-text':'#d8d0c0', '--toggle-bg':'#4a4030', '--toggle-dot':'#fff', '--canvas-shadow':'0 0 40px rgba(220,180,60,0.15),0 4px 20px rgba(0,0,0,0.4)' },
+    boardColors:{ gridBg:'#2a2418', emptyCell:'#383020', gridLine:'#6a5e30', gridBorder:'#8a7a40', cellHighlight:'rgba(255,255,255,0.15)', cellShadow:'rgba(0,0,0,0.2)', cellBorder:'rgba(255,240,200,0.1)', previewValidFill:'rgba(100,210,130,0.3)', previewValidStroke:'rgba(100,210,130,0.55)', previewInvalidFill:'rgba(255,100,90,0.25)', previewInvalidStroke:'rgba(255,100,90,0.45)' }
+  },
+  {
+    id:'candy', name:'Candy', price:200,
+    desc:'Sweet pink confection',
+    cssVars:{ '--bg-body':'#fdf0f5', '--bg-card':'#ffffff', '--bg-card-hover':'#fff5f8', '--bg-card-selected':'#fff8fa', '--border':'#f4d4e2', '--border-focus':'#e8b0c8', '--border-selected':'#ee90b0', '--text':'#584048', '--text-dim':'#a08090', '--text-muted':'#c0a8b0', '--text-best':'#705060', '--score-gold':'#dcb040', '--btn-buy-bg':'#ee90b0', '--btn-buy-color':'#fff', '--combo-pink':'#e87090', '--grid-bg':'#fbe8f2', '--grid-line':'#f4dae8', '--grid-border':'#eed0e0', '--empty-cell':'#fdf2f8', '--overlay-bg':'rgba(250,235,242,0.8)', '--overlay-card-bg':'#ffffff', '--overlay-card-border':'#f4dae8', '--start-bg':'radial-gradient(ellipse at center,#faeaf4 0%,#f4e0ec 100%)', '--start-card-bg':'rgba(255,255,255,0.85)', '--start-card-border':'#f4dae8', '--start-subtitle':'#a07888', '--start-hint':'#a88890', '--start-credits':'#b098a0', '--ghost-text':'#a88890', '--ghost-border':'#ecdae4', '--ghost-hover-text':'#605060', '--ghost-hover-border':'#d0b8c4', '--shadow':'rgba(200,180,190,0.25)', '--selected-glow':'rgba(238,144,176,0.25)', '--game-title-gradient':'linear-gradient(135deg,#ee90b0,#f4b0d0)', '--settings-bg':'#ffffff', '--settings-border':'#f4dae8', '--settings-text':'#584048', '--toggle-bg':'#ecdae4', '--toggle-dot':'#fff', '--canvas-shadow':'0 0 40px rgba(230,160,190,0.12),0 4px 20px rgba(180,150,160,0.15)' },
+    boardColors:{ gridBg:'#fbe8f2', emptyCell:'#fdf2f8', gridLine:'#f4dae8', gridBorder:'#eed0e0', cellHighlight:'rgba(255,255,255,0.38)', cellShadow:'rgba(200,180,190,0.12)', cellBorder:'rgba(200,180,190,0.15)', previewValidFill:'rgba(130,210,150,0.28)', previewValidStroke:'rgba(130,210,150,0.45)', previewInvalidFill:'rgba(255,110,110,0.22)', previewInvalidStroke:'rgba(255,110,110,0.4)' }
+  },
+];
+
+/** 皮肤图片缓存 — board/piece: { [skinId]: Image }, customer: { [skinId]: Image[] } */
+const skinImages = { board:{}, piece:{}, customer:{} };
+// 皮肤状态（运行时）
+let ownedSkins = { board:[], piece:[], customer:[], theme:[] };
+let activeSkin = { board:'classic_blue', piece:'classic', customer:'shoppers', theme:'dark' };
+
+/** 查找皮肤元数据 */
+function getSkinMeta(cat, id) {
+  const list = cat==='board'?SKIN_BOARDS : cat==='piece'?SKIN_PIECES : cat==='customer'?SKIN_CUSTOMERS : SKIN_THEMES;
+  return list.find(s => s.id === id);
+}
+
+/** 某个类别下指定皮肤是否已拥有 */
+function isSkinOwned(cat, id) {
+  return ownedSkins[cat].includes(id);
+}
+
+/** 装备皮肤 */
+function equipSkin(cat, id) {
+  if (!isSkinOwned(cat, id)) return false;
+  activeSkin[cat] = id;
+  saveSkinState();
+  if (cat === 'theme') {
+    // 主题切换淡入淡出动画
+    const wrapper = document.querySelector('.game-wrapper');
+    if (wrapper) wrapper.style.opacity = '0';
+    setTimeout(() => {
+      applyTheme(id);
+      rebuildBgBlocks();
+      render();
+      renderPreviewCanvases();
+      if (gameMode === 'market') updateCustomerUI();
+      if (wrapper) wrapper.style.opacity = '1';
+    }, 150);
+  } else {
+    render();
+    renderPreviewCanvases();
+    if (gameMode === 'market') {
+      if (cat === 'customer') refreshCustomerQueue();
+      else updateCustomerUI();
+    }
+  }
+  return true;
+}
+
+/** 购买皮肤 */
+function purchaseSkin(cat, id) {
+  const meta = getSkinMeta(cat, id);
+  if (!meta || isSkinOwned(cat, id)) return false;
+  if (shells < meta.price) return false;
+  shells -= meta.price;
+  marketSaveShells();
+  ownedSkins[cat].push(id);
+  saveSkinState();
+  updateScoreUI();
+  return true;
+}
+
+/** 检查某张皮肤图片是否就绪（用于 customer 多图：任一张就绪即可） */
+function isSkinImageReady(cat, id) {
+  if (cat === 'customer') {
+    const imgs = skinImages.customer[id];
+    if (!imgs || !imgs.length) return false;
+    return imgs.some(img => img && img.complete && img.naturalWidth > 0);
+  }
+  const img = skinImages[cat][id];
+  return img && img.complete && img.naturalWidth > 0;
+}
+
+/** 获取当前激活皮肤的首张就绪图片（customer 专用） */
+function getActiveCustomerImg() {
+  const imgs = skinImages.customer[activeSkin.customer];
+  if (!imgs || !imgs.length) return null;
+  return imgs.find(img => img && img.complete && img.naturalWidth > 0) || null;
+}
+
+/** 随机获取当前客户皮肤下的一个角色图片（用于 spawn 新顾客时） */
+function randomCustomerSkinImg() {
+  const imgs = skinImages.customer[activeSkin.customer];
+  if (!imgs || !imgs.length) return null;
+  return imgs[Math.floor(Math.random() * imgs.length)];
+}
+
 // 海鲜图片缓存：key → Image
 const seafoodImages = {};
 
-/** 预加载海鲜图片 */
+/** 检查海鲜图片是否已加载完成（对象存在 + 加载完毕 + 图片有效） */
+function isSeafoodImageReady(key) {
+  const img = seafoodImages[key];
+  return img && img.complete && img.naturalWidth > 0;
+}
+
+/** 预加载海鲜图片（带重试机制，解决 GitHub Pages 网络不稳定问题） */
 function loadSeafoodImages() {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 800; // ms，渐进递增
+
   for (const info of SEAFOOD_PIECES) {
-    if (info.imgSrc) {
+    if (!info.imgSrc) continue;
+
+    const key = info.key;
+    const src = info.imgSrc;
+    // 第一次是 onload/onerror 注册前就设置 src，所以用工厂函数
+    function tryLoad(attempt) {
       const img = new Image();
-      img.src = info.imgSrc;
-      seafoodImages[info.key] = img;
+      seafoodImages[key] = img;
+
       img.onload = () => {
+        if (attempt > 1) console.log(`🖼️ ${key} 第 ${attempt} 次重试成功`);
         render();
         renderPreviewCanvases();
       };
+
+      img.onerror = () => {
+        console.warn(`⚠️ ${key} 加载失败（第 ${attempt}/${MAX_RETRIES} 次）: ${src}`);
+        if (attempt < MAX_RETRIES) {
+          setTimeout(() => tryLoad(attempt + 1), RETRY_DELAY * attempt);
+        } else {
+          // 最终失败：从缓存中移除，render 会走 emoji 兜底
+          delete seafoodImages[key];
+          console.warn(`❌ ${key} 加载彻底失败，回退到 emoji`);
+          render();
+          renderPreviewCanvases();
+        }
+      };
+
+      img.src = src;
     }
+
+    tryLoad(1);
   }
+}
+
+/** 预加载皮肤图片（board/piece 单图 + customer 多图，带重试） */
+function loadSkinImages() {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 800;
+
+  function loadSingle(cat, id, src, attempt) {
+    const img = new Image();
+    skinImages[cat][id] = img;
+    img.onload = () => {
+      if (attempt > 1) console.log(`🖼️ skin ${cat}/${id} 第 ${attempt} 次重试成功`);
+      render();
+      renderPreviewCanvases();
+    };
+    img.onerror = () => {
+      console.warn(`⚠️ skin ${cat}/${id} 加载失败（第 ${attempt}/${MAX_RETRIES} 次）`);
+      if (attempt < MAX_RETRIES) {
+        setTimeout(() => loadSingle(cat, id, src, attempt + 1), RETRY_DELAY * attempt);
+      } else {
+        delete skinImages[cat][id];
+      }
+    };
+    img.src = src;
+  }
+
+  function loadMulti(id, srcs, attempt) {
+    const imgs = srcs.map(src => {
+      const img = new Image();
+      img.src = src;
+      return img;
+    });
+    skinImages.customer[id] = imgs;
+    let loaded = 0;
+    let failed = 0;
+    const total = imgs.length;
+    imgs.forEach((img, idx) => {
+      img.onload = () => {
+        loaded++;
+        if (loaded === total) { render(); renderPreviewCanvases(); }
+      };
+      img.onerror = () => {
+        failed++;
+        console.warn(`⚠️ skin customer/${id}[${idx}] 加载失败（第 ${attempt}/${MAX_RETRIES} 次）`);
+        if (attempt < MAX_RETRIES) {
+          // 只重试失败的单张
+          const retryImg = new Image();
+          imgs[idx] = retryImg;
+          retryImg.onload = () => {
+            loaded++;
+            if (loaded + failed >= total) { render(); renderPreviewCanvases(); }
+          };
+          retryImg.onerror = () => {
+            failed++;
+            console.warn(`❌ skin customer/${id}[${idx}] 彻底失败`);
+          };
+          setTimeout(() => { retryImg.src = srcs[idx]; }, RETRY_DELAY * attempt);
+        } else {
+          console.warn(`❌ skin customer/${id}[${idx}] 彻底失败`);
+        }
+      };
+    });
+  }
+
+  // Board skins
+  SKIN_BOARDS.forEach(s => { if (s.imgSrc) loadSingle('board', s.id, s.imgSrc, 1); });
+  // Piece skins
+  SKIN_PIECES.forEach(s => { if (s.imgSrc) loadSingle('piece', s.id, s.imgSrc, 1); });
+  // Customer skins (multi-image per theme)
+  SKIN_CUSTOMERS.forEach(s => {
+    const srcs = s.imgs.map(fn => s.dir + fn + '.png');
+    loadMulti(s.id, srcs, 1);
+  });
 }
 
 // ===== 游戏状态 =====
@@ -176,6 +447,7 @@ let history;        // 用于撤销 { grid, blocks, score, combo, selectedIdx }
 let clearingCells;     // [{ row, col }]
 let clearTimer;        // 帧计数
 let clearingParticles = []; // 金色粒子 { x, y, vx, vy, life, size, hue }
+let basketClearAnims = [];    // 篮消海鲜放大动画 { piece, x, y, w, h, scale, life }
 let scoreFloats = [];       // 得分飘字 { x, y, text, life }
 
 // 模式
@@ -212,16 +484,22 @@ let previewCanvases = [];
 // ===== 初始化 =====
 function init() {
   canvas = document.getElementById('gameCanvas');
-  canvas.width  = CANVAS_SIZE;
-  canvas.height = CANVAS_SIZE;
+  canvas.width  = CANVAS_SIZE * dpr;
+  canvas.height = CANVAS_SIZE * dpr;
+  canvas.style.width  = CANVAS_SIZE + 'px';
+  canvas.style.height = CANVAS_SIZE + 'px';
   ctx = canvas.getContext('2d');
 
   loadSeafoodImages();
+  loadSkinImages();
+  loadSkinState();
 
   // 方块预览小画布
   document.querySelectorAll('.block-card canvas').forEach(c => {
-    c.width  = 120;
-    c.height = 120;
+    c.width  = 120 * dpr;
+    c.height = 120 * dpr;
+    c.style.width  = '120px';
+    c.style.height = '120px';
     previewCanvases.push(c);
   });
 
@@ -234,7 +512,7 @@ function init() {
   updateStartHint();
 
   // 背景浮动方块装饰
-  createBgBlocks();
+  rebuildBgBlocks();
 
   setupEvents();
   requestAnimationFrame(gameLoop);
@@ -250,7 +528,6 @@ function init() {
   document.getElementById('btnFreePlay').addEventListener('click', () => {
     gameMode = 'freePlay';
     document.getElementById('modeSelectOverlay').classList.add('hidden');
-    document.getElementById('bgBlocks').classList.add('hidden');
     switchPanel('freePlay');
     startNewGame();
     render();
@@ -260,7 +537,6 @@ function init() {
   document.getElementById('btnMarketMode').addEventListener('click', () => {
     gameMode = 'market';
     document.getElementById('modeSelectOverlay').classList.add('hidden');
-    document.getElementById('bgBlocks').classList.add('hidden');
     switchPanel('market');
     startNewGame();
     render();
@@ -278,6 +554,7 @@ function init() {
   document.getElementById('btnShopStart').addEventListener('click', () => {
     initAudio();
     updateShopOverlay();
+    renderSkinShop('board');
     document.getElementById('shopOverlay').classList.remove('hidden');
   });
 
@@ -285,6 +562,7 @@ function init() {
   document.getElementById('btnSettingsStart').addEventListener('click', () => {
     initAudio();
     syncSoundToggleUI();
+    populateSettingsSkinSelectors();
     document.getElementById('settingsOverlay').classList.remove('hidden');
   });
 
@@ -320,8 +598,25 @@ function init() {
       const target = tab.dataset.tab;
       const content = document.querySelector(`.shop-tab-content[data-tab="${target}"]`);
       if (content) content.classList.add('active');
+      // 切换到 Skins 时渲染默认子标签
+      if (target === 'skins') {
+        document.querySelectorAll('.skin-subtab').forEach(st => st.classList.toggle('active', st.dataset.skinCat === 'board'));
+        renderSkinShop('board');
+      }
     });
   });
+
+  // 皮肤子标签切换
+  document.querySelectorAll('.skin-subtab').forEach(st => {
+    st.addEventListener('click', () => {
+      document.querySelectorAll('.skin-subtab').forEach(s => s.classList.remove('active'));
+      st.classList.add('active');
+      renderSkinShop(st.dataset.skinCat);
+    });
+  });
+
+  // 初始化皮肤卡片事件委托
+  bindSkinShopEvents();
 
   // 关闭设置弹窗
   document.getElementById('btnCloseSettings').addEventListener('click', () => {
@@ -356,25 +651,22 @@ function init() {
     document.getElementById('confirmBackOverlay').classList.add('hidden');
   });
 
-  // 确认弹窗 - 返回主页
+  // 确认弹窗 - 返回主页（先结算再跳到结算页）
   document.getElementById('btnConfirmBack').addEventListener('click', () => {
     document.getElementById('confirmBackOverlay').classList.add('hidden');
-    document.getElementById('overlay').classList.add('hidden');
-    document.getElementById('startOverlay').classList.remove('hidden');
-    document.getElementById('bgBlocks').classList.remove('hidden');
-    // 重置游戏状态
-    grid = null;
-    gameOver = false;
-    clearingCells = [];
-    clearTimer = 0;
-    customerQueue = [];
-    activeCustomer = null;
-    basketZone = null;
-    updateStartHint();
+    gameOver = true;
+    showGameOver(false);  // 隐藏 Play Again，只显示 Back to Home
   });
 
   // 点击确认弹窗外部关闭
   document.getElementById('confirmBackOverlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      e.currentTarget.classList.add('hidden');
+    }
+  });
+
+  // 点击重新开始确认弹窗外部关闭
+  document.getElementById('confirmNewGameOverlay').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) {
       e.currentTarget.classList.add('hidden');
     }
@@ -392,24 +684,79 @@ function init() {
       document.getElementById('settingsOverlay').classList.add('hidden');
       document.getElementById('shopOverlay').classList.add('hidden');
       document.getElementById('confirmBackOverlay').classList.add('hidden');
+      document.getElementById('confirmNewGameOverlay').classList.add('hidden');
     }
   });
 }
 
-/** 开始页背景浮动方块 + seafood 贴图 */
-function createBgBlocks() {
-  const container = document.getElementById('bgBlocks');
-  const colors = ['#FF6B6B','#4ECDC4','#45B7D1','#DDA0DD','#FFEAA7','#82E0AA'];
-  const seafood = [
-    'assets/seafood/clam_1x1.png',
-    'assets/seafood/razor_clam_1x2.png',
-    'assets/seafood/razor_clam_2x1.png',
-    'assets/seafood/shrimp_LU.png',
-    'assets/seafood/shrimp_RU.png',
-    'assets/seafood/shrimp_LB.png',
-    'assets/seafood/shrimp_RB.png',
-    'assets/seafood/squid_2x3.png',
+/** 填充 Settings 面板的皮肤选择器 */
+function populateSettingsSkinSelectors() {
+  const pairs = [
+    { cat:'theme',    elId:'settingThemeSkin',     list:SKIN_THEMES },
+    { cat:'board',    elId:'settingBoardSkin',    list:SKIN_BOARDS },
+    { cat:'piece',    elId:'settingPieceSkin',     list:SKIN_PIECES },
+    { cat:'customer', elId:'settingCustomerSkin',  list:SKIN_CUSTOMERS },
   ];
+  for (const {cat, elId, list} of pairs) {
+    const sel = document.getElementById(elId);
+    if (!sel) continue;
+    sel.innerHTML = '';
+    for (const skin of list) {
+      if (!isSkinOwned(cat, skin.id)) continue;
+      const opt = document.createElement('option');
+      opt.value = skin.id;
+      opt.textContent = skin.name;
+      if (skin.id === activeSkin[cat]) opt.selected = true;
+      sel.appendChild(opt);
+    }
+  }
+  bindSettingsSkinSelectors();
+}
+
+/** 绑定设置面板皮肤选择器 change 事件 */
+function bindSettingsSkinSelectors() {
+  const map = { settingThemeSkin:'theme', settingBoardSkin:'board', settingPieceSkin:'piece', settingCustomerSkin:'customer' };
+  Object.entries(map).forEach(([elId, cat]) => {
+    const sel = document.getElementById(elId);
+    if (!sel || sel._skinBound) return;
+    sel._skinBound = true;
+    sel.addEventListener('change', () => {
+      if (equipSkin(cat, sel.value)) {
+        playTone(520, 0.1, 'sine', 0.06);
+      }
+    });
+  });
+}
+
+/** 背景浮动方块 + 主题贴图 / emoji */
+const DRIFT_COLORS = {
+  dark:          ['#4a90d9','#cf6679','#03dac5'],
+  light:         ['#a0b0c8','#c0a8b8','#a8c8b8'],
+  forest:        ['#8ab88a','#c8a870','#a0c860'],
+  midnight_gold: ['#e8c848','#c0a030','#a08020'],
+  candy:         ['#f4a0b8','#f4c8d8','#e8a0c8'],
+};
+const DRIFT_EMOJIS = {
+  forest:        ['\ud83c\udf3f','\ud83c\udf42','\ud83c\udf41','\ud83c\udf30','\ud83c\udf44','\ud83c\udf40','\ud83e\udeb5','\ud83e\uded0'],
+  midnight_gold: ['\ud83e\ude99','\ud83d\udc8e','\u2b50','\ud83d\udc51','\ud83d\udddd\ufe0f','\ud83c\udfc6','\ud83d\udca0','\ud83e\udee7'],
+  candy:         ['\ud83c\udf6d','\ud83e\uddc1','\ud83c\udf6c','\ud83d\udc96','\ud83c\udf66','\ud83c\udf69','\ud83c\udf6b','\ud83c\udf80'],
+};
+const DRIFT_SEAFOOD = [
+  'assets/seafood/clam_1x1.png',
+  'assets/seafood/razor_clam_1x2.png',
+  'assets/seafood/razor_clam_2x1.png',
+  'assets/seafood/shrimp_LU.png',
+  'assets/seafood/shrimp_RU.png',
+  'assets/seafood/shrimp_LB.png',
+  'assets/seafood/shrimp_RB.png',
+  'assets/seafood/squid_2x3.png',
+];
+
+function createBgBlocks(container, theme) {
+  if (!container) return;
+  const colors = DRIFT_COLORS[theme] || DRIFT_COLORS['dark'];
+  const emojis = DRIFT_EMOJIS[theme]; // undefined for dark/light → 用海鲜图片
+
   for (let i = 0; i < 20; i++) {
     const el = document.createElement('div');
     el.className = 'bg-block';
@@ -417,23 +764,41 @@ function createBgBlocks() {
     el.style.width  = size + 'px';
     el.style.height = size + 'px';
     el.style.left   = Math.random() * 100 + '%';
+    el.style.top    = Math.random() * 100 + '%';
     el.style.animationDuration = (12 + Math.random() * 18) + 's';
-    el.style.animationDelay    = Math.random() * 15 + 's';
+    el.style.animationDelay    = (Math.random() * -25) + 's';
 
-    // 一半概率用海鲜贴图
+    // 一半概率用贴图/emoji，一半概率用纯色方块
     if (Math.random() < 0.5) {
       el.style.background = 'transparent';
-      const img = document.createElement('img');
-      img.src = seafood[Math.floor(Math.random() * seafood.length)];
-      img.style.width = '100%';
-      img.style.height = '100%';
-      img.style.objectFit = 'contain';
-      el.appendChild(img);
+      if (emojis) {
+        el.style.display = 'flex';
+        el.style.alignItems = 'center';
+        el.style.justifyContent = 'center';
+        el.style.fontSize = size * 0.8 + 'px';
+        el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      } else {
+        const img = document.createElement('img');
+        img.src = DRIFT_SEAFOOD[Math.floor(Math.random() * DRIFT_SEAFOOD.length)];
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'contain';
+        el.appendChild(img);
+      }
     } else {
       el.style.background = colors[Math.floor(Math.random() * colors.length)];
     }
     container.appendChild(el);
   }
+}
+
+/** 重建所有漂移背景（主题切换时调用） */
+function rebuildBgBlocks() {
+  const theme = activeSkin.theme || 'dark';
+  ['bgBlocks', 'startBgBlocks'].forEach(id => {
+    const c = document.getElementById(id);
+    if (c) { c.innerHTML = ''; createBgBlocks(c, theme); }
+  });
 }
 
 /** 更新开始页提示（最高分 + 贝壳） */
@@ -721,12 +1086,12 @@ function placeBlock(row, col) {
     const ccSet = new Set();
     for (let r of rowsToClear) {
       for (let c = 0; c < GRID_SIZE; c++) {
-        if (!seafoodGrid[r][c]) ccSet.add(`${r},${c}`);
+        if (!seafoodGrid[r][c] || seafoodGrid[r][c].isGap) ccSet.add(`${r},${c}`);
       }
     }
     for (let c of colsToClear) {
       for (let r = 0; r < GRID_SIZE; r++) {
-        if (!seafoodGrid[r][c]) ccSet.add(`${r},${c}`);
+        if (!seafoodGrid[r][c] || seafoodGrid[r][c].isGap) ccSet.add(`${r},${c}`);
       }
     }
 
@@ -819,8 +1184,9 @@ function checkGameOver() {
   showRescueOverlay();
 }
 
-function showGameOver() {
+function showGameOver(showRestart = true) {
   document.getElementById('rescueOverlay').classList.add('hidden');
+  document.getElementById('btnRestart').style.display = showRestart ? '' : 'none';
   const overlayCard = document.querySelector('#overlay .overlay-card');
   const h2 = overlayCard.querySelector('h2');
   const p = overlayCard.querySelector('p');
@@ -845,7 +1211,15 @@ function showGameOver() {
     p.textContent = 'Final Score';
     document.getElementById('finalScore').textContent = score;
     const newBestEl = document.getElementById('newBest');
-    if (score >= bestScore && score > 0) {
+    // 从未保存过的最高分（localStorage 可能为空）
+    const storedBest = parseInt(localStorage.getItem('blockPuzzleBest') || '0');
+    if (score > storedBest && score > 0) {
+      bestScore = score;
+      localStorage.setItem('blockPuzzleBest', bestScore);
+      newBestEl.textContent = '🎉 New Record!';
+      newBestEl.classList.remove('hidden');
+    } else if (storedBest > 0) {
+      newBestEl.textContent = `Best: ${storedBest}`;
       newBestEl.classList.remove('hidden');
     } else {
       newBestEl.classList.add('hidden');
@@ -1097,20 +1471,33 @@ function gy(row) { return PADDING + row * CELL_SIZE; }
 /** ★ 绘制填充方块（替换素材改这里） */
 function drawFilledCell(ctx, x, y, size, color) {
   const tm = themeColors();
-  // -- 主色块 --
-  ctx.fillStyle = color;
-  roundRect(ctx, x + 1, y + 1, size - 2, size - 2, 5);
-  ctx.fill();
+  const useSkin = activeSkin.piece !== 'classic'
+    && isSkinImageReady('piece', activeSkin.piece)
+    && color !== '#C5E8F7'; // 海鲜背景不套用棋子皮肤
+
+  // -- 主色块（皮肤纹理 或 纯色） --
+  if (useSkin) {
+    const tile = skinImages.piece[activeSkin.piece];
+    ctx.save();
+    roundRect(ctx, x + 1, y + 1, size - 2, size - 2, 5);
+    ctx.clip();
+    ctx.drawImage(tile, x + 1, y + 1, size - 2, size - 2);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = color;
+    roundRect(ctx, x + 1, y + 1, size - 2, size - 2, 5);
+    ctx.fill();
+  }
 
   // -- 高光（左上）--
   ctx.save();
   ctx.beginPath();
   roundRect(ctx, x + 1, y + 1, size - 2, size - 2, 5);
   ctx.clip();
-  ctx.fillStyle = tm.cellHighlight;
+  ctx.fillStyle = useSkin ? 'rgba(255,255,255,0.12)' : tm.cellHighlight;
   ctx.fillRect(x + 2, y + 2, size - 4, (size - 4) * 0.45);
   // -- 阴影（右下）--
-  ctx.fillStyle = tm.cellShadow;
+  ctx.fillStyle = useSkin ? 'rgba(0,0,0,0.15)' : tm.cellShadow;
   ctx.fillRect(x + 2, y + 2 + (size - 4) * 0.55, size - 4, (size - 4) * 0.45);
   ctx.restore();
 
@@ -1190,6 +1577,7 @@ function render() {
   if (!grid) return; // 游戏未开始时跳过
   
   const tm = themeColors();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
   // 棋盘背景
@@ -1197,6 +1585,20 @@ function render() {
   roundRect(ctx, PADDING - 4, PADDING - 4,
             GRID_SIZE * CELL_SIZE + 8, GRID_SIZE * CELL_SIZE + 8, 14);
   ctx.fill();
+
+  // 棋盘皮肤：边框装饰（铺满画布，清空格子区域，皮肤仅留边框）
+  const boardSkin = activeSkin.board;
+  if (boardSkin !== 'classic_blue' && isSkinImageReady('board', boardSkin)) {
+    ctx.drawImage(skinImages.board[boardSkin], 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    // 清除内部格子区域，让皮肤仅环绕在棋盘点阵四周
+    ctx.clearRect(PADDING - 4, PADDING - 4,
+                  GRID_SIZE * CELL_SIZE + 8, GRID_SIZE * CELL_SIZE + 8);
+    // 重绘棋盘背景（被 clearRect 清掉了）
+    ctx.fillStyle = tm.gridBg;
+    roundRect(ctx, PADDING - 4, PADDING - 4,
+              GRID_SIZE * CELL_SIZE + 8, GRID_SIZE * CELL_SIZE + 8, 14);
+    ctx.fill();
+  }
 
   // 正在消除的格子
   const clearingSet = new Set();
@@ -1226,12 +1628,12 @@ function render() {
         ctx.globalAlpha = 1;
         ctx.restore();
       } else if (grid[r][c] !== 0) {
-        if (seafoodGrid[r][c]) {
+        if (seafoodGrid[r][c] && !seafoodGrid[r][c].isGap) {
           const sd = seafoodGrid[r][c];
           // ★ 逐格单独绘制背景（和普通棋子一致），然后贴图
           drawFilledCell(ctx, x, y, CELL_SIZE, '#C5E8F7');
 
-          if (!seafoodImages[sd.key]) {
+          if (!isSeafoodImageReady(sd.key)) {
             // 无图片素材：每格画 emoji
             ctx.font = `${CELL_SIZE * 0.55}px sans-serif`;
             ctx.textAlign = 'center';
@@ -1252,8 +1654,14 @@ function render() {
 
   // 海鲜棋子整图贴图（最后一层，PNG透明像素处理缺口）
   for (const piece of placedSeafoodPieces) {
+    if (!isSeafoodImageReady(piece.key)) continue;
+    // 篮子消除动画期间跳过篮区内棋子（由放大动画接管）
+    if (pendingBasketClear) {
+      const bc = pendingBasketClear;
+      if (piece.originR < bc.row + bc.rows && piece.originR + piece.rows > bc.row &&
+          piece.originC < bc.col + bc.cols && piece.originC + piece.cols > bc.col) continue;
+    }
     const img = seafoodImages[piece.key];
-    if (!img || !img.complete || !img.naturalWidth) continue;
     const x = gx(piece.originC);
     const y = gy(piece.originR);
     ctx.drawImage(img, x, y, piece.cols * CELL_SIZE, piece.rows * CELL_SIZE);
@@ -1332,6 +1740,20 @@ function render() {
   }
   ctx.globalAlpha = 1;
 
+  // 篮消海鲜放大动画
+  for (const a of basketClearAnims) {
+    const img = seafoodImages[a.piece.key];
+    if (!img) continue;
+    ctx.save();
+    ctx.globalAlpha = a.life * 0.6;
+    const cx = a.x + a.w / 2;
+    const cy = a.y + a.h / 2;
+    ctx.translate(cx, cy);
+    ctx.scale(a.scale, a.scale);
+    ctx.drawImage(img, -a.w / 2, -a.h / 2, a.w, a.h);
+    ctx.restore();
+  }
+
   // 得分飘字
   for (const s of scoreFloats) {
     const alpha = Math.min(1, s.life * 1.5);
@@ -1357,12 +1779,15 @@ function render() {
 const PREVIEW_CELL = 22; // 统一的预览格大小，所有方块等比例
 
 function renderPreviewCanvases() {
+  if (!previewCanvases.length) return;
   for (let i = 0; i < 3; i++) {
     const pc   = previewCanvases[i];
+    if (!pc) continue;
     const pctx = pc.getContext('2d');
-    pctx.clearRect(0, 0, pc.width, pc.height);
+    pctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    pctx.clearRect(0, 0, 120, 120);
 
-    const block = blocks[i];
+    const block = blocks && blocks[i];
     if (!block || block.placed) continue;
 
     const shape  = block.shape;
@@ -1370,8 +1795,8 @@ function renderPreviewCanvases() {
     const cols   = shape[0].length;
     const totalW = cols * PREVIEW_CELL;
     const totalH = rows * PREVIEW_CELL;
-    const offX   = (pc.width  - totalW) / 2;
-    const offY   = (pc.height - totalH) / 2;
+    const offX   = (120 - totalW) / 2;
+    const offY   = (120 - totalH) / 2;
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -1385,7 +1810,7 @@ function renderPreviewCanvases() {
           roundRect(pctx, px + 1, py + 1, PREVIEW_CELL - 2, PREVIEW_CELL - 2, 3);
           pctx.fill();
 
-          if (!seafoodImages[block.seafoodKey]) {
+          if (!isSeafoodImageReady(block.seafoodKey)) {
             // 无图片：emoji 逐格绘制
             pctx.font = `${PREVIEW_CELL * 0.6}px sans-serif`;
             pctx.textAlign = 'center';
@@ -1393,9 +1818,18 @@ function renderPreviewCanvases() {
             pctx.fillText(block.seafoodEmoji, px + PREVIEW_CELL / 2, py + PREVIEW_CELL / 2);
           }
         } else {
-          pctx.fillStyle = block.color;
-          roundRect(pctx, px + 1, py + 1, PREVIEW_CELL - 2, PREVIEW_CELL - 2, 3);
-          pctx.fill();
+          const usePs = activeSkin.piece !== 'classic' && isSkinImageReady('piece', activeSkin.piece);
+          if (usePs) {
+            pctx.save();
+            roundRect(pctx, px + 1, py + 1, PREVIEW_CELL - 2, PREVIEW_CELL - 2, 3);
+            pctx.clip();
+            pctx.drawImage(skinImages.piece[activeSkin.piece], px + 1, py + 1, PREVIEW_CELL - 2, PREVIEW_CELL - 2);
+            pctx.restore();
+          } else {
+            pctx.fillStyle = block.color;
+            roundRect(pctx, px + 1, py + 1, PREVIEW_CELL - 2, PREVIEW_CELL - 2, 3);
+            pctx.fill();
+          }
         }
 
         // 高光
@@ -1405,11 +1839,8 @@ function renderPreviewCanvases() {
     }
 
     // 海鲜棋子整图贴图（在 origin 位置叠一层，覆盖 bounding box）
-    if (block.isSeafood && block.seafoodKey) {
-      const img = seafoodImages[block.seafoodKey];
-      if (img && img.complete && img.naturalWidth) {
-        pctx.drawImage(img, offX, offY, totalW, totalH);
-      }
+    if (block.isSeafood && block.seafoodKey && isSeafoodImageReady(block.seafoodKey)) {
+        pctx.drawImage(seafoodImages[block.seafoodKey], offX, offY, totalW, totalH);
     }
   }
 }
@@ -1439,16 +1870,25 @@ function createDragImage(block) {
         roundRect(cx, px + 1, py + 1, PREVIEW_CELL - 2, PREVIEW_CELL - 2, 3);
         cx.fill();
 
-        if (!seafoodImages[block.seafoodKey]) {
+        if (!isSeafoodImageReady(block.seafoodKey)) {
           cx.font = `${PREVIEW_CELL * 0.6}px sans-serif`;
           cx.textAlign = 'center';
           cx.textBaseline = 'middle';
           cx.fillText(block.seafoodEmoji, px + PREVIEW_CELL / 2, py + PREVIEW_CELL / 2);
         }
       } else {
-        cx.fillStyle = block.color;
-        roundRect(cx, px + 1, py + 1, PREVIEW_CELL - 2, PREVIEW_CELL - 2, 3);
-        cx.fill();
+        const usePs = activeSkin.piece !== 'classic' && isSkinImageReady('piece', activeSkin.piece);
+        if (usePs) {
+          cx.save();
+          roundRect(cx, px + 1, py + 1, PREVIEW_CELL - 2, PREVIEW_CELL - 2, 3);
+          cx.clip();
+          cx.drawImage(skinImages.piece[activeSkin.piece], px + 1, py + 1, PREVIEW_CELL - 2, PREVIEW_CELL - 2);
+          cx.restore();
+        } else {
+          cx.fillStyle = block.color;
+          roundRect(cx, px + 1, py + 1, PREVIEW_CELL - 2, PREVIEW_CELL - 2, 3);
+          cx.fill();
+        }
       }
 
       cx.fillStyle = 'rgba(255,255,255,0.25)';
@@ -1457,11 +1897,8 @@ function createDragImage(block) {
   }
 
   // 海鲜棋子整图贴图（在 origin 位置叠一层）
-  if (block.isSeafood && block.seafoodKey) {
-    const img = seafoodImages[block.seafoodKey];
-    if (img && img.complete && img.naturalWidth) {
-      cx.drawImage(img, pad, pad, totalW - pad * 2, totalH - pad * 2);
-    }
+  if (block.isSeafood && block.seafoodKey && isSeafoodImageReady(block.seafoodKey)) {
+      cx.drawImage(seafoodImages[block.seafoodKey], pad, pad, totalW - pad * 2, totalH - pad * 2);
   }
 
   return c;
@@ -1544,8 +1981,6 @@ function switchPanel(mode) {
   document.getElementById('bestRow').style.display        = isFree ? '' : 'none';
   document.getElementById('shellsRow').style.display      = isFree ? 'none' : '';
   document.getElementById('customerSide').style.display = isFree ? 'none' : '';
-  // 更新主面板标题
-  document.getElementById('overlayTitle').textContent = isFree ? 'Free Play' : 'Market Mode';
 }
 
 // ===== 道具系统 =====
@@ -1558,6 +1993,40 @@ function loadPowerUps() {
 
 function savePowerUps() {
   localStorage.setItem('blockPuzzlePowerUps', JSON.stringify(powerUps));
+}
+
+// ===== 皮肤持久化 =====
+function loadSkinState() {
+  const saved = localStorage.getItem('blockPuzzleSkins');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      if (data.owned) {
+        ownedSkins = data.owned;
+        // 兼容旧存档（没有 theme 字段）
+        if (!ownedSkins.theme) ownedSkins.theme = [];
+      }
+      if (data.active) {
+        activeSkin = data.active;
+        if (!activeSkin.theme) activeSkin.theme = 'dark';
+      }
+    } catch(e) {}
+  }
+  // 确保默认皮肤始终拥有
+  if (!ownedSkins.board.includes('classic_blue')) ownedSkins.board.push('classic_blue');
+  if (!ownedSkins.piece.includes('classic')) ownedSkins.piece.push('classic');
+  if (!ownedSkins.customer.includes('shoppers')) ownedSkins.customer.push('shoppers');
+  if (!ownedSkins.theme.includes('dark')) ownedSkins.theme.push('dark');
+  if (!ownedSkins.theme.includes('light')) ownedSkins.theme.push('light');
+  // 确保 active 有效（防止数据错乱）
+  if (!ownedSkins.board.includes(activeSkin.board)) activeSkin.board = 'classic_blue';
+  if (!ownedSkins.piece.includes(activeSkin.piece)) activeSkin.piece = 'classic';
+  if (!ownedSkins.customer.includes(activeSkin.customer)) activeSkin.customer = 'shoppers';
+  if (!ownedSkins.theme.includes(activeSkin.theme)) activeSkin.theme = 'dark';
+}
+
+function saveSkinState() {
+  localStorage.setItem('blockPuzzleSkins', JSON.stringify({ owned: ownedSkins, active: activeSkin }));
 }
 
 function updatePowerUpUI() {
@@ -1673,6 +2142,98 @@ function updateShopOverlay() {
   document.querySelectorAll('.btn-buy').forEach(btn => {
     btn.disabled = bal < parseInt(btn.dataset.cost);
   });
+  // 同时刷新皮肤卡片的购买按钮状态
+  renderSkinShop(currentSkinCat);
+}
+
+// ===== 皮肤商店渲染 =====
+let currentSkinCat = 'board';
+
+/** 渲染皮肤子标签下的卡片网格 */
+function renderSkinShop(cat) {
+  currentSkinCat = cat;
+  const grid = document.getElementById('skinGrid');
+  const info = document.getElementById('skinShellInfo');
+  if (!grid) return;
+  const list = cat==='board'?SKIN_BOARDS : cat==='piece'?SKIN_PIECES : cat==='customer'?SKIN_CUSTOMERS : SKIN_THEMES;
+  const bal = parseInt(localStorage.getItem('blockPuzzleShells') || '0');
+
+  let html = '';
+  for (const skin of list) {
+    const owned = isSkinOwned(cat, skin.id);
+    const active = activeSkin[cat] === skin.id;
+    const canAfford = bal >= skin.price;
+
+    let thumbHtml = '';
+    if (cat === 'theme') {
+      // 主题皮肤：显示色块预览
+      const c = skin.boardColors || {};
+      const gb = c.gridBg || '#333';
+      const ec = c.emptyCell || '#444';
+      thumbHtml = `<div style="width:100%;height:100%;display:flex;flex-direction:column;border-radius:8px;overflow:hidden;">
+        <div style="flex:3;background:${gb};"></div>
+        <div style="flex:2;background:${ec};display:flex;align-items:center;justify-content:center;font-size:20px;">🎨</div>
+      </div>`;
+    } else if (cat === 'customer') {
+      // 顾客皮肤显示第一个角色图片
+      const firstImg = skin.imgs ? skin.dir + skin.imgs[0] + '.png' : '';
+      thumbHtml = firstImg ? `<img src="${firstImg}" alt="${skin.name}" onerror="this.style.display='none';this.nextSibling.style.display='block'"><span style="display:none;font-size:30px;">👥</span>` : '<span>👥</span>';
+    } else if (skin.imgSrc) {
+      thumbHtml = `<img src="${skin.imgSrc}" alt="${skin.name}" onerror="this.style.display='none';this.nextSibling.style.display='block'"><span style="display:none;font-size:30px;">${cat==='board'?'🟦':'🧊'}</span>`;
+    } else {
+      thumbHtml = cat==='board' ? '<span>🌊</span>' : '<span>🎨</span>';
+    }
+
+    let classes = ['skin-card'];
+    if (active) classes.push('active');
+    else if (owned) classes.push('owned');
+    else classes.push('locked');
+
+    let btnHtml = '';
+    if (active) {
+      btnHtml = `<span class="skin-badge active-badge">★ Active</span>`;
+    } else if (owned) {
+      btnHtml = `<button class="btn btn-ghost skin-btn skin-equip-btn" data-cat="${cat}" data-id="${skin.id}">Equip</button>`;
+    } else {
+      const canBuy = skin.price > 0 && canAfford;
+      btnHtml = `<button class="btn btn-buy skin-btn skin-buy-btn" data-cat="${cat}" data-id="${skin.id}" data-cost="${skin.price}" ${canBuy?'':'disabled'}>🐚${skin.price}</button>`;
+    }
+
+    html += `<div class="${classes.join(' ')}">
+      <div class="skin-thumb">${thumbHtml}</div>
+      <div class="skin-name">${skin.name}</div>
+      <div class="skin-desc">${skin.desc}</div>
+      ${btnHtml}
+    </div>`;
+  }
+
+  grid.innerHTML = html;
+  if (info) info.textContent = `🐚 Balance: ${bal}`;
+}
+
+/** 绑定皮肤卡片事件（事件委托，绑定在 document 上确保可靠捕获） */
+function bindSkinShopEvents() {
+  document.addEventListener('click', (e) => {
+    const buyBtn = e.target.closest('.skin-buy-btn');
+    const equipBtn = e.target.closest('.skin-equip-btn');
+    if (buyBtn) {
+      const cat = buyBtn.dataset.cat;
+      const id = buyBtn.dataset.id;
+      if (purchaseSkin(cat, id)) {
+        playTone(660, 0.12, 'sine', 0.08);
+        renderSkinShop(cat);
+        updateShopOverlay();
+        updateScoreUI();
+      }
+    }
+    if (equipBtn) {
+      const cat = equipBtn.dataset.cat;
+      const id = equipBtn.dataset.id;
+      equipSkin(cat, id);
+      playTone(520, 0.1, 'sine', 0.06);
+      renderSkinShop(cat);
+    }
+  });
 }
 
 // ===== 顾客系统（Market Mode）=====
@@ -1689,6 +2250,17 @@ function randomCustomerIcon() {
   return CUSTOMER_ICONS[Math.floor(Math.random() * CUSTOMER_ICONS.length)];
 }
 
+/** 使用当前激活的顾客皮肤创建一个顾客对象 */
+function createCustomerObj() {
+  const type = randomBasketType();
+  const img = randomCustomerSkinImg();
+  if (img && img.complete && img.naturalWidth) {
+    return { icon: randomCustomerIcon(), type, skinImg: img };
+  }
+  // 皮肤图未就绪，回退到 emoji
+  return { icon: randomCustomerIcon(), type, skinImg: null };
+}
+
 function randomBasketType() {
   return BASKET_TYPES[Math.floor(Math.random() * BASKET_TYPES.length)];
 }
@@ -1696,13 +2268,22 @@ function randomBasketType() {
 /** 初始化顾客队列 */
 function initCustomerQueue() {
   customerQueue = [];
-  // 填充 4 个顾客（1 个活跃 + 3 个排队）
   for (let i = 0; i < 4; i++) {
-    customerQueue.push({
-      icon: randomCustomerIcon(),
-      type: randomBasketType(),
-    });
+    customerQueue.push(createCustomerObj());
   }
+}
+
+/** 刷新顾客队列（切换皮肤时用，保留当前顾客的篮区类型） */
+function refreshCustomerQueue() {
+  // 用新皮肤重建队列中的顾客
+  customerQueue = customerQueue.map(() => createCustomerObj());
+  // 用新皮肤重建当前活跃顾客（保留篮区类型不变）
+  if (activeCustomer) {
+    const savedType = activeCustomer.type;
+    activeCustomer = createCustomerObj();
+    activeCustomer.type = savedType;
+  }
+  updateCustomerUI();
 }
 
 /** 下一位顾客 */
@@ -1711,11 +2292,7 @@ function nextCustomer() {
     initCustomerQueue();
   }
   activeCustomer = customerQueue.shift();
-  // 补充一个新顾客
-  customerQueue.push({
-    icon: randomCustomerIcon(),
-    type: randomBasketType(),
-  });
+  customerQueue.push(createCustomerObj());
 
   // 放置篮区
   placeBasketZone();
@@ -1815,7 +2392,7 @@ function checkBasketServe() {
     let seafoodCount = 0;
     for (let r = row; r < row + rows; r++) {
       for (let c = col; c < col + cols; c++) {
-        if (seafoodGrid[r][c]) seafoodCount++;
+        if (seafoodGrid[r][c] && !seafoodGrid[r][c].isGap) seafoodCount++;
       }
     }
 
@@ -1834,6 +2411,25 @@ function checkBasketServe() {
     // 生成金色粒子（无得分飘字）
     spawnClearEffects(0, 0, 0);
 
+    // 篮区内海鲜棋子→放大消失动画
+    const animSet = new Set();
+    for (const piece of placedSeafoodPieces) {
+      if (!isSeafoodImageReady(piece.key)) continue;
+      if (piece.originR < row + rows && piece.originR + piece.rows > row &&
+          piece.originC < col + cols && piece.originC + piece.cols > col) {
+        animSet.add(piece);
+      }
+    }
+    basketClearAnims = [...animSet].map(piece => ({
+      piece,
+      x: gx(piece.originC),
+      y: gy(piece.originR),
+      w: piece.cols * CELL_SIZE,
+      h: piece.rows * CELL_SIZE,
+      scale: 1,
+      life: 1,
+    }));
+
     // 音效
     playTone(660, 0.1, 'sine', 0.08);
     setTimeout(() => playTone(880, 0.12, 'sine', 0.08), 100);
@@ -1850,7 +2446,24 @@ function checkBasketServe() {
 /** 更新顾客UI */
 function updateCustomerUI() {
   if (!activeCustomer) return;
-  document.getElementById('custIcon').textContent = activeCustomer.icon;
+
+  /** 渲染顾客头像（皮肤图片 或 emoji），round=true 用于圆形主头像 */
+  function renderCustomerAvatar(el, customer, round) {
+    el.innerHTML = '';
+    if (customer.skinImg && customer.skinImg.complete && customer.skinImg.naturalWidth) {
+      const img = document.createElement('img');
+      img.src = customer.skinImg.src;
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.objectFit = 'contain';
+      if (round) img.style.borderRadius = '50%';
+      el.appendChild(img);
+    } else {
+      el.textContent = customer.icon;
+    }
+  }
+
+  renderCustomerAvatar(document.getElementById('custIcon'), activeCustomer, true);
   document.getElementById('custBasketHint').textContent =
     `Fill ${activeCustomer.type.w}×${activeCustomer.type.h} area!`;
   updateCustomerProgressUI();
@@ -1862,7 +2475,7 @@ function updateCustomerUI() {
     const slot = document.createElement('div');
     slot.className = 'queue-slot';
     if (i < customerQueue.length) {
-      slot.innerHTML = `<span>${customerQueue[i].icon}</span>`;
+      renderCustomerAvatar(slot, customerQueue[i], false);
     }
     queueRow.appendChild(slot);
   }
@@ -1875,7 +2488,7 @@ function updateCustomerProgressUI() {
     const { row, col, rows, cols } = basketZone;
     for (let r = row; r < row + rows; r++)
       for (let c = col; c < col + cols; c++)
-        if (seafoodGrid[r][c]) seafoodCount++;
+        if (seafoodGrid[r][c] && !seafoodGrid[r][c].isGap) seafoodCount++;
   }
   const txt = seafoodCount > 0
     ? `${filled} / ${basketZone ? basketZone.total : '?'} 🦞${seafoodCount}`
@@ -2022,11 +2635,54 @@ function setupEvents() {
   // ---- 按钮 ----
   document.getElementById('btnNewGame').addEventListener('click', () => {
     initAudio();
-    startNewGame();
+    if (!gameOver) {
+      document.getElementById('confirmNewGameOverlay').classList.remove('hidden');
+    } else {
+      startNewGame();
+    }
   });
   document.getElementById('btnRestart').addEventListener('click', () => {
     initAudio();
-    startNewGame();
+    if (!gameOver) {
+      document.getElementById('confirmNewGameOverlay').classList.remove('hidden');
+    } else {
+      startNewGame();
+    }
+  });
+  document.getElementById('btnGameOverHome').addEventListener('click', () => {
+    initAudio();
+    document.getElementById('overlay').classList.add('hidden');
+    document.getElementById('startOverlay').classList.remove('hidden');
+    grid = null;
+    gameOver = false;
+    clearingCells = [];
+    clearTimer = 0;
+    customerQueue = [];
+    activeCustomer = null;
+    basketZone = null;
+    updateBestHints();
+    updateScoreUI();
+  });
+
+  // ---- 重新开始确认弹窗 ----
+  document.getElementById('btnCancelNewGame').addEventListener('click', () => {
+    document.getElementById('confirmNewGameOverlay').classList.add('hidden');
+  });
+  document.getElementById('btnConfirmNewGame').addEventListener('click', () => {
+    // 结算当前局
+    if (gameMode === 'market') {
+      if (sessionShells > bestSessionShells && sessionShells > 0) {
+        bestSessionShells = sessionShells;
+        localStorage.setItem('blockPuzzleBestShells', bestSessionShells);
+      }
+      shells += sessionShells;
+      marketSaveShells();
+    }
+    // Free Play 的 bestScore 已在游戏过程中实时保存
+
+    document.getElementById('confirmNewGameOverlay').classList.add('hidden');
+    gameOver = true;  // 标记结束，弹出结算弹窗
+    showGameOver();
   });
 
   // ---- 设置按钮 (in-game) → 打开设置弹窗 ----
@@ -2034,6 +2690,7 @@ function setupEvents() {
     e.stopPropagation();
     initAudio();
     syncSoundToggleUI();
+    populateSettingsSkinSelectors();
     document.getElementById('settingsOverlay').classList.remove('hidden');
   });
 
@@ -2064,24 +2721,48 @@ function setupEvents() {
   });
 
   // 主题切换
-  document.querySelectorAll('#themeToggle .theme-option').forEach(btn => {
-    btn.addEventListener('click', () => {
-      applyTheme(btn.dataset.theme);
-    });
-  });
-
   // 音效开关
   syncSoundToggleUI();
   document.getElementById('soundToggle').addEventListener('change', () => {
     isMuted = !document.getElementById('soundToggle').checked;
     localStorage.setItem('blockPuzzleMuted', isMuted ? '1' : '0');
     syncSoundToggleUI();
+    if (isMuted) { pauseBgm(); } else { playBgm(); }
+  });
+  // 音量滑块
+  const volSlider = document.getElementById('volumeSlider');
+  volSlider.value = Math.round(bgmVolume * 100);
+  volSlider.addEventListener('input', () => {
+    bgmVolume = volSlider.value / 100;
+    localStorage.setItem('blockPuzzleVolume', bgmVolume.toString());
+    if (bgm) bgm.volume = bgmVolume;
+    if (!isMuted && bgm && bgm.paused) playBgm();
   });
 
   // 应用保存的主题 & 加载道具
   applyTheme(currentTheme);
   loadPowerUps();
   updatePowerUpUI();
+  
+  // 监听 DPR 变化（多屏切换）
+  function onDprChange() {
+    const nd = window.devicePixelRatio || 1;
+    if (nd === dpr) return;
+    dpr = nd;
+    canvas.width  = CANVAS_SIZE * dpr;
+    canvas.height = CANVAS_SIZE * dpr;
+    canvas.style.width  = CANVAS_SIZE + 'px';
+    canvas.style.height = CANVAS_SIZE + 'px';
+    previewCanvases.forEach(c => {
+      c.width  = 120 * dpr;
+      c.height = 120 * dpr;
+      c.style.width  = '120px';
+      c.style.height = '120px';
+    });
+    render();
+    renderPreviewCanvases();
+  }
+  window.matchMedia(`(resolution: ${dpr}dppx)`).addEventListener('change', onDprChange);
 }
 
 // ===== 主循环 =====
@@ -2148,6 +2829,13 @@ function gameLoop() {
     p.vy += 0.08; // 微重力
     p.life -= 0.025;
     if (p.life <= 0) clearingParticles.splice(i, 1);
+  }
+  // 篮消海鲜动画更新
+  for (let i = basketClearAnims.length - 1; i >= 0; i--) {
+    const a = basketClearAnims[i];
+    a.scale += 0.03;
+    a.life -= 0.04;
+    if (a.life <= 0) basketClearAnims.splice(i, 1);
   }
   for (let i = scoreFloats.length - 1; i >= 0; i--) {
     const s = scoreFloats[i];

@@ -10,7 +10,7 @@ A hybrid of **block puzzle** and **sim-management**. Place polyomino pieces on a
 
 Just open `index.html` in any browser — no build, no server, no dependencies.
 
-**[Live on GitHub Pages →](https://Chad‑Bradley.github.io/block/)**
+**[Live on GitHub Pages →](https://你的用户名.github.io/block/)**
 
 ---
 
