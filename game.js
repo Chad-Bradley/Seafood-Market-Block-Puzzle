@@ -142,6 +142,8 @@ const SHAPES = [
   /* 28 */ { name:'U5-u',   shape:[[1,0,1],[1,1,1]] },   // 带鱼 开口上
   /* 29 */ { name:'U5-l',   shape:[[1,1],[0,1],[1,1]] },  // 带鱼 开口左
   /* 30 */ { name:'U5-r',   shape:[[1,1],[1,0],[1,1]] },  // 带鱼 开口右
+  /* 31 */ { name:'N4-a',   shape:[[1,0],[1,1],[0,1]] },  // 竖Z (N)
+  /* 32 */ { name:'N4-b',   shape:[[0,1],[1,1],[1,0]] },  // 竖反Z (反N)
 ];
 
 // ===== 海鲜棋子（Market Mode） =====
@@ -1236,7 +1238,7 @@ function showRescueOverlay() {
   ov.classList.remove('hidden');
 
   // Bomb 救援
-  const bombCost = 10;
+  const bombCost = 50;
   const hasBomb = powerUps.bomb > 0;
   const canBuyBomb = shells >= bombCost;
   const bombBtn = ov.querySelector('[data-action="bomb"]');
@@ -1253,7 +1255,7 @@ function showRescueOverlay() {
   }
 
   // Shuffle 救援
-  const shuffleCost = 8;
+  const shuffleCost = 50;
   const hasShuffle = powerUps.shuffle > 0;
   const canBuyShuffle = shells >= shuffleCost;
   const shuffleBtn = ov.querySelector('[data-action="shuffle"]');
@@ -1270,7 +1272,7 @@ function showRescueOverlay() {
   }
 
   // Undo 救援
-  const undoCost = 5;
+  const undoCost = 50;
   const hasUndo = powerUps.undoStep > 0;
   const canBuyUndo = shells >= undoCost;
   const undoBtn = ov.querySelector('[data-action="undo"]');

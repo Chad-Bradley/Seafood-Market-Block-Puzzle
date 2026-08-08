@@ -1,16 +1,14 @@
-# 🧊 Block Puzzle — Seafood Market
+# 🧊 Tile & Tide — Seafood Market Block Puzzle
 
-A hybrid of **block puzzle** and **sim-management**. Place polyomino pieces on an 8×8 board, clear rows & columns, and serve seafood-loving customers to earn shells.
-
-<img src="assets/seafood/clam_1x1.png" width="64"> <img src="assets/seafood/shrimp_LU.png" width="64"> <img src="assets/seafood/squid_2x3.png" width="64"> <img src="assets/seafood/crab_3x2.png" width="64">
+A cozy hybrid of **block puzzle** and **market sim**. Place polyomino pieces on an 8×8 board, clear rows & columns, and serve seafood-loving customers to earn shells.
 
 ---
 
 ## 🎮 Play
 
-Just open `index.html` in any browser — no build, no server, no dependencies.
-
-**[Live on GitHub Pages →](https://你的用户名.github.io/block/)**
+- **[itch.io →](https://chad-bradley.itch.io/tile-and-tide)**
+- **[GitHub Pages →](https://chad-bradley.github.io/Seafood-Market-Block-Puzzle/)**
+- Or open `index.html` in any browser — no build, no server, no dependencies.
 
 ---
 
@@ -18,8 +16,8 @@ Just open `index.html` in any browser — no build, no server, no dependencies.
 
 | Mode | Goal |
 |------|------|
-| **Free Play** | Classic block puzzle. Clear rows & columns, chase your high score! |
-| **Market Mode** | Seafood market sim. Fill customer basket zones to serve orders and earn 🐚 shells. |
+| 🧊 **Classic Mode** | Endless block puzzle. Clear rows & columns, chase your high score — no pressure, no timers. |
+| 🦀 **Market Mode** | Run a seaside market. Fill customer basket zones to serve orders, include seafood pieces for bonus 🐚 shells, and spend your earnings on power-ups and skins. |
 
 ---
 
@@ -37,16 +35,19 @@ Just open `index.html` in any browser — no build, no server, no dependencies.
 
 | Item | Effect | Cost |
 |------|--------|------|
-| 💣 Bomb | Destroy a 3×3 area on the board | 10 🐚 |
-| 🔀 Shuffle | Replace all unplaced pieces | 8 🐚 |
-| ↩️ Undo+ | Reverse your last placement | 5 🐚 |
+| 💣 Bomb | Destroy a 3×3 area on the board | 50 🐚 |
+| 🔀 Shuffle | Replace all unplaced pieces | 50 🐚 |
+| ↩️ Undo+ | Reverse your last placement | 50 🐚 |
 
 ---
 
 ## 🎨 Features
 
 - 25+ polyomino piece shapes
-- 19 hand-drawn seafood image assets
+- 19 seafood image assets
+- Customer avatar skins (unlockable)
+- Board & piece skins (unlockable)
+- Relaxing piano BGM with volume control
 - Dark / Light theme
 - Sound effects with mute toggle
 - Combo scoring & particle effects
@@ -64,7 +65,7 @@ Just open `index.html` in any browser — no build, no server, no dependencies.
 | Logic | Vanilla JavaScript |
 | Styling | CSS Custom Properties |
 | Storage | `localStorage` |
-| Images | PNG (transparent) |
+| Audio | Web Audio API + BGM |
 
 ---
 
@@ -75,18 +76,13 @@ block/
 ├── index.html          # Main page & UI
 ├── game.js             # All game logic
 ├── assets/
-│   └── seafood/        # 19 seafood PNG images
+│   ├── bgm.mp3         # Background music
+│   ├── icon/           # App & cursor icons
+│   ├── seafood/        # 19 seafood PNG images
+│   └── skins/          # Board, piece & customer skins
 ├── GAME_DESIGN.md      # Full design document
 └── README.md
 ```
-
----
-
-## 🚀 Deploy to GitHub Pages
-
-1. Push this repo to GitHub
-2. Settings → Pages → Source: `main` branch → Save
-3. Your game is live at `https://<user>.github.io/block/`
 
 ---
 

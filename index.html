@@ -527,28 +527,6 @@
     font-size: 15px;
   }
 
-  .btn-play {
-    display: inline-block;
-    padding: 16px 56px;
-    border: none;
-    border-radius: 14px;
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    cursor: pointer;
-    background: linear-gradient(135deg, #5b7fff, #8b5cf6);
-    color: #fff;
-    transition: all 0.3s;
-    box-shadow: 0 0 30px rgba(91, 127, 255, 0.3);
-  }
-  .btn-play:hover {
-    transform: translateY(-2px) scale(1.05);
-    box-shadow: 0 0 50px rgba(123, 159, 255, 0.5);
-  }
-  .btn-play:active {
-    transform: scale(0.97);
-  }
-
   /* ===== 开始页按钮组 ===== */
   .start-buttons {
     display: flex;
@@ -560,41 +538,50 @@
     display: block;
     width: 100%;
     padding: 14px 48px;
-    border: none;
+    border: 2px solid;
     border-radius: 12px;
     font-size: 18px;
     font-weight: 700;
     letter-spacing: 2px;
     cursor: pointer;
     transition: all 0.25s;
-    color: #fff;
+    background: transparent;
   }
+  /* Play — icy blue */
   .btn-start.btn-play {
-    background: linear-gradient(135deg, #5b7fff, #8b5cf6);
-    box-shadow: 0 0 24px rgba(91, 127, 255, 0.3);
+    color: #8aadff;
+    border-color: #5b7fff;
+    box-shadow: 0 0 16px rgba(91, 127, 255, 0.15);
   }
   .btn-start.btn-play:hover {
-    transform: translateY(-2px) scale(1.04);
-    box-shadow: 0 0 40px rgba(123, 159, 255, 0.5);
+    transform: translateY(-2px);
+    color: #b8cfff;
+    border-color: #8aadff;
+    box-shadow: 0 0 32px rgba(91, 127, 255, 0.35);
   }
+  /* Shop — warm amber */
   .btn-start.btn-shop {
-    background: linear-gradient(135deg, #f59e0b, #ef4444);
-    box-shadow: 0 0 18px rgba(245, 158, 11, 0.25);
+    color: #f5c842;
+    border-color: #e5a010;
+    box-shadow: 0 0 16px rgba(229, 160, 16, 0.15);
   }
   .btn-start.btn-shop:hover {
-    transform: translateY(-2px) scale(1.04);
-    box-shadow: 0 0 36px rgba(245, 158, 11, 0.45);
+    transform: translateY(-2px);
+    color: #fce48c;
+    border-color: #f5c842;
+    box-shadow: 0 0 32px rgba(229, 160, 16, 0.35);
   }
+  /* Settings — muted neutral */
   .btn-start.btn-settings {
-    background: transparent;
-    border: 2px solid var(--border-focus);
     color: var(--text-dim);
-    letter-spacing: 1px;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 8px rgba(136, 136, 170, 0.1);
   }
   .btn-start.btn-settings:hover {
-    transform: translateY(-2px) scale(1.04);
-    border-color: var(--text-dim);
+    transform: translateY(-2px);
     color: var(--text);
+    border-color: var(--text-dim);
+    box-shadow: 0 0 20px rgba(136, 136, 170, 0.25);
   }
   .btn-start:active { transform: scale(0.97); }
 
@@ -1195,17 +1182,17 @@
         <div class="shop-item">
           <div class="shop-item-info"><span class="shop-item-icon">💣</span><span>Bomb</span></div>
           <div class="shop-item-desc">Blast a 3×3 area</div>
-          <button class="btn btn-buy" data-item="bomb" data-cost="10">10 🐚</button>
+          <button class="btn btn-buy" data-item="bomb" data-cost="50">50 🐚</button>
         </div>
         <div class="shop-item">
           <div class="shop-item-info"><span class="shop-item-icon">🔀</span><span>Shuffle</span></div>
           <div class="shop-item-desc">New unplaced pieces</div>
-          <button class="btn btn-buy" data-item="shuffle" data-cost="8">8 🐚</button>
+          <button class="btn btn-buy" data-item="shuffle" data-cost="50">50 🐚</button>
         </div>
         <div class="shop-item">
           <div class="shop-item-info"><span class="shop-item-icon">↩️</span><span>Undo+</span></div>
           <div class="shop-item-desc">Extra undo step</div>
-          <button class="btn btn-buy" data-item="undoStep" data-cost="5">5 🐚</button>
+          <button class="btn btn-buy" data-item="undoStep" data-cost="50">50 🐚</button>
         </div>
       </div>
     </div>
