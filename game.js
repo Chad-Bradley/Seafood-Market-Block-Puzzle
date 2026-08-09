@@ -1352,7 +1352,10 @@ function init() {
   // 🛒 商店砍价彩蛋：余额不足时连点购买按钮 5 下
   let shopPokeCount = 0, shopPokeTimer = null;
   document.getElementById('shopOverlay').addEventListener('click', (e) => {
-    const btn = e.target.closest('.btn-buy');
+    // 点按钮、描述、图标都算——只要容器内有禁用的购买按钮
+    const container = e.target.closest('.shop-item, .skin-card');
+    if (!container) { shopPokeCount = 0; return; }
+    const btn = container.querySelector('.btn-buy');
     if (!btn || !btn.disabled) { shopPokeCount = 0; return; }
     shopPokeCount++;
     clearTimeout(shopPokeTimer);
@@ -2097,7 +2100,7 @@ function showRescueOverlay() {
   const ov = document.getElementById('rescueOverlay');
   ov.classList.remove('hidden');
 
-  // 🦀 彩蛋：中文模式 10% 概率显示舟山方言
+  // 🦀 彩蛋：中文模式 5% 概率显示舟山方言
   const h2 = ov.querySelector('h2 span');
   if (h2 && currentLang === 'zh' && Math.random() < 0.05) {
     h2.textContent = '死蟹一只！';
