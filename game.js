@@ -59,9 +59,11 @@ function pauseBgm() {
 }
 
 function initAudio() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  } catch (_) { /* 移动端可能不支持 */ }
   playBgm();
 }
 
@@ -88,7 +90,27 @@ function sfxClear(n)  {
     setTimeout(() => playTone(520 + i * 120, 0.12, 'triangle', 0.08), i * 70);
   }
 }
-function sfxInvalid() { playTone(180, 0.15, 'square', 0.03); }
+function sfxInvalid() {
+  playTone(180, 0.15, 'square', 0.03);
+  // 🦀 彩蛋：10% 概率显示"摆弗进！"
+  if (currentLang === 'zh' && Math.random() < 0.1) {
+    // 直接内联计数，不走闭包
+    if (!stats._foundEggs) stats._foundEggs = {};
+    if (!stats._foundEggs['baifujin']) {
+      stats._foundEggs['baifujin'] = true;
+      stats.easterEggsFound = (stats.easterEggsFound || 0) + 1;
+      saveStats();
+      checkAchievements();
+    }
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;top:45%;left:50%;transform:translate(-50%,-50%);z-index:9999;'
+      + 'font-size:22px;font-weight:800;color:#FF6B6B;text-shadow:0 0 12px rgba(255,100,100,0.4);'
+      + 'pointer-events:none;animation:eeFade 1.5s ease-out forwards;font-family:inherit;';
+    toast.textContent = '摆弗进！';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 1600);
+  }
+}
 function sfxGameOver() {
   [300, 250, 200].forEach((f, i) =>
     setTimeout(() => playTone(f, 0.2, 'triangle', 0.06), i * 150)
@@ -144,6 +166,7 @@ const SHAPES = [
   /* 30 */ { name:'U5-r',   shape:[[1,1],[1,0],[1,1]] },  // 带鱼 开口右
   /* 31 */ { name:'N4-a',   shape:[[1,0],[1,1],[0,1]] },  // 竖Z (N)
   /* 32 */ { name:'N4-b',   shape:[[0,1],[1,1],[1,0]] },  // 竖反Z (反N)
+  /* 33 */ { name:'2x4',    shape:[[1,1,1,1],[1,1,1,1]] }, // 2行4列（方块拼图用）
 ];
 
 // ===== 海鲜棋子（Market Mode） =====
@@ -179,6 +202,7 @@ const SKIN_BOARDS = [
   { id:'sunset_beach',  name:'Sunset Beach',  price:80,  imgSrc:'assets/skins/board/sunset_beach.png', desc:'Warm tropical shore' },
   { id:'arctic',        name:'Arctic',        price:100, imgSrc:'assets/skins/board/arctic.png',       desc:'Ice-cold underwater' },
   { id:'wood',          name:'Wood',          price:100, imgSrc:'assets/skins/board/wood.png',         desc:'Warm walnut frame' },
+  { id:'treasure_board',name:'Treasure Chest',price:null,category:'achievement', imgSrc:'assets/skins/board/treasure_chest.png', desc:'Earn 300 shells in one game' },
 ];
 
 const SKIN_PIECES = [
@@ -187,6 +211,7 @@ const SKIN_PIECES = [
   { id:'metal',      name:'Metal',      price:100, imgSrc:'assets/skins/piece/metal_tile.png',   desc:'Sleek metallic blocks' },
   { id:'abalone',    name:'Abalone',    price:120, imgSrc:'assets/skins/piece/abalone_tile.png', desc:'Shimmering shell inlay' },
   { id:'driftwood',  name:'Driftwood',  price:120, imgSrc:'assets/skins/piece/driftwood_tile.png',desc:'Weathered wood grain' },
+  { id:'crown_piece', name:'Golden Crown', price:null, category:'achievement', imgSrc:'assets/skins/piece/crown_tile.png', desc:'Reach score ≥ 1500' },
 ];
 
 const SKIN_CUSTOMERS = [
@@ -194,6 +219,7 @@ const SKIN_CUSTOMERS = [
   { id:'merfolk',    name:'Merfolk',    price:100, dir:'assets/skins/customer/merfolk/',   imgs:['mermaid','merman','sea_king','sea_queen'],                                   desc:'Mythical sea dwellers' },
   { id:'fishermen',  name:'Fishermen',  price:100, dir:'assets/skins/customer/fishermen/', imgs:['fisherman_old','fisherman_young','fisherwoman'],                                desc:'Seaside anglers' },
   { id:'pirates',    name:'Pirates',    price:120, dir:'assets/skins/customer/pirates/',   imgs:['pirate_captain','pirate_sailor','pirate_parrot'],                               desc:'Swashbuckling crew' },
+  { id:'chef_hat',   name:'Chef Master',  price:null, category:'achievement', dir:'assets/skins/customer/chef_master/',  imgs:['head_chef','line_cook','waiter','kitchen_helper'], desc:'Clear 300 seafood pieces' },
 ];
 
 const SKIN_THEMES = [
@@ -224,6 +250,55 @@ const SKIN_THEMES = [
     desc:'Sweet pink confection',
     cssVars:{ '--bg-body':'#fdf0f5', '--bg-card':'#ffffff', '--bg-card-hover':'#fff5f8', '--bg-card-selected':'#fff8fa', '--border':'#f4d4e2', '--border-focus':'#e8b0c8', '--border-selected':'#ee90b0', '--text':'#584048', '--text-dim':'#a08090', '--text-muted':'#c0a8b0', '--text-best':'#705060', '--score-gold':'#dcb040', '--btn-buy-bg':'#ee90b0', '--btn-buy-color':'#fff', '--combo-pink':'#e87090', '--grid-bg':'#fbe8f2', '--grid-line':'#f4dae8', '--grid-border':'#eed0e0', '--empty-cell':'#fdf2f8', '--overlay-bg':'rgba(250,235,242,0.8)', '--overlay-card-bg':'#ffffff', '--overlay-card-border':'#f4dae8', '--start-bg':'radial-gradient(ellipse at center,#faeaf4 0%,#f4e0ec 100%)', '--start-card-bg':'rgba(255,255,255,0.85)', '--start-card-border':'#f4dae8', '--start-subtitle':'#a07888', '--start-hint':'#a88890', '--start-credits':'#b098a0', '--ghost-text':'#a88890', '--ghost-border':'#ecdae4', '--ghost-hover-text':'#605060', '--ghost-hover-border':'#d0b8c4', '--shadow':'rgba(200,180,190,0.25)', '--selected-glow':'rgba(238,144,176,0.25)', '--game-title-gradient':'linear-gradient(135deg,#ee90b0,#f4b0d0)', '--settings-bg':'#ffffff', '--settings-border':'#f4dae8', '--settings-text':'#584048', '--toggle-bg':'#ecdae4', '--toggle-dot':'#fff', '--canvas-shadow':'0 0 40px rgba(230,160,190,0.12),0 4px 20px rgba(180,150,160,0.15)' },
     boardColors:{ gridBg:'#fbe8f2', emptyCell:'#fdf2f8', gridLine:'#f4dae8', gridBorder:'#eed0e0', cellHighlight:'rgba(255,255,255,0.38)', cellShadow:'rgba(200,180,190,0.12)', cellBorder:'rgba(200,180,190,0.15)', previewValidFill:'rgba(130,210,150,0.28)', previewValidStroke:'rgba(130,210,150,0.45)', previewInvalidFill:'rgba(255,110,110,0.22)', previewInvalidStroke:'rgba(255,110,110,0.4)' }
+  },
+  {
+    id:'ocean_depths', name:'Ocean Depths', price:null, category:'achievement',
+    desc:'Deep sea bioluminescent cyan',
+    cssVars:{ '--bg-body':'#081420', '--bg-card':'#0e1e30', '--bg-card-hover':'#142638',
+      '--bg-card-selected':'#112234', '--border':'#182d45', '--border-focus':'#1e5080',
+      '--border-selected':'#0096c7', '--text':'#c8e8f8', '--text-dim':'#6898b8',
+      '--text-muted':'#487090', '--text-best':'#80b8d8',
+      '--score-gold':'#48b8d0', '--btn-buy-bg':'#0096c7', '--btn-buy-color':'#fff',
+      '--combo-pink':'#d07090',
+      '--grid-bg':'#0b1a28', '--grid-line':'#152e45', '--grid-border':'#1e4870',
+      '--empty-cell':'#10202e',
+      '--overlay-bg':'rgba(4,12,24,0.85)', '--overlay-card-bg':'#0e1e30',
+      '--overlay-card-border':'#182d45',
+      '--start-bg':'radial-gradient(ellipse at center,#0a1e35 0%,#040e1a 100%)',
+      '--start-card-bg':'rgba(14,28,45,0.85)', '--start-card-border':'#182d45',
+      '--start-subtitle':'#6898b8', '--start-hint':'#487090', '--start-credits':'#305068',
+      '--ghost-text':'#5080a0', '--ghost-border':'#182d45',
+      '--ghost-hover-text':'#a0d8f0', '--ghost-hover-border':'#1e5080',
+      '--shadow':'rgba(0,30,60,0.35)', '--selected-glow':'rgba(0,150,200,0.3)',
+      '--game-title-gradient':'linear-gradient(135deg,#0096c7,#48c8e8)',
+      '--settings-bg':'#0e1e30', '--settings-border':'#182d45', '--settings-text':'#c8e8f8',
+      '--toggle-bg':'#152e45', '--toggle-dot':'#fff',
+      '--canvas-shadow':'0 0 40px rgba(0,150,200,0.18),0 4px 20px rgba(0,40,80,0.35)' },
+    boardColors:{ gridBg:'#0b1a28', emptyCell:'#10202e', gridLine:'#152e45', gridBorder:'#1e4870', cellHighlight:'rgba(0,180,220,0.18)', cellShadow:'rgba(0,0,0,0.22)', cellBorder:'rgba(0,180,220,0.08)', previewValidFill:'rgba(80,230,180,0.3)', previewValidStroke:'rgba(80,230,180,0.55)', previewInvalidFill:'rgba(255,100,90,0.25)', previewInvalidStroke:'rgba(255,100,90,0.45)' }
+  },
+  {
+    id:'midnight', name:'Midnight Fishing', price:0,
+    desc:'Night pier with lantern light',
+    cssVars:{ '--bg-body':'#060d18', '--bg-card':'#0c1525', '--bg-card-hover':'#111d32',
+      '--bg-card-selected':'#0f182c', '--border':'#2a3040', '--border-focus':'#4a5070',
+      '--border-selected':'#f0a830', '--text':'#e8d8b8', '--text-dim':'#a89068',
+      '--text-muted':'#786040', '--text-best':'#b8a078',
+      '--score-gold':'#f0a830', '--btn-buy-bg':'#f0a830', '--btn-buy-color':'#1a1008',
+      '--combo-pink':'#e88860', '--grid-bg':'#0a1422', '--grid-line':'#1a2d42',
+      '--grid-border':'#2a4060', '--empty-cell':'#0e1828',
+      '--overlay-bg':'rgba(2,8,18,0.85)', '--overlay-card-bg':'#0c1525',
+      '--overlay-card-border':'#2a3040',
+      '--start-bg':'radial-gradient(ellipse at center,#0a1830 0%,#040a16 100%)',
+      '--start-card-bg':'rgba(12,21,37,0.85)', '--start-card-border':'#2a3040',
+      '--start-subtitle':'#a89068', '--start-hint':'#786040', '--start-credits':'#584020',
+      '--ghost-text':'#886838', '--ghost-border':'#2a3040',
+      '--ghost-hover-text':'#d8c0a0', '--ghost-hover-border':'#4a5070',
+      '--shadow':'rgba(0,0,0,0.5)', '--selected-glow':'rgba(240,168,48,0.3)',
+      '--game-title-gradient':'linear-gradient(135deg,#f0a830,#f8c860)',
+      '--settings-bg':'#0c1525', '--settings-border':'#2a3040', '--settings-text':'#e8d8b8',
+      '--toggle-bg':'#2a3040', '--toggle-dot':'#fff',
+      '--canvas-shadow':'0 0 40px rgba(240,168,48,0.14),0 4px 20px rgba(0,0,0,0.5)' },
+    boardColors:{ gridBg:'#0a1422', emptyCell:'#0e1828', gridLine:'#1a2d42', gridBorder:'#2a4060', cellHighlight:'rgba(240,168,48,0.14)', cellShadow:'rgba(0,0,0,0.3)', cellBorder:'rgba(240,168,48,0.08)', previewValidFill:'rgba(120,220,160,0.25)', previewValidStroke:'rgba(120,220,160,0.5)', previewInvalidFill:'rgba(255,100,90,0.22)', previewInvalidStroke:'rgba(255,100,90,0.4)' }
   },
 ];
 
@@ -282,6 +357,7 @@ function purchaseSkin(cat, id) {
   ownedSkins[cat].push(id);
   saveSkinState();
   updateScoreUI();
+  checkAchievements();
   return true;
 }
 
@@ -457,6 +533,26 @@ let gameMode = 'freePlay';     // 'freePlay' | 'market'
 
 // 顾客系统（Market Mode）
 const CUSTOMER_ICONS = ['🦀','🦐','🦑','🐟','🐙','🦞','🐠','🐡','🦪','🐚'];
+// 海鲜 key → 对话类别映射
+const SEAFOOD_CATEGORY_MAP = {
+  crab: 'crab', shrimp_LU:'shrimp', shrimp_RU:'shrimp', shrimp_LB:'shrimp', shrimp_RB:'shrimp',
+  mantis_shrimp_h:'shrimp', mantis_shrimp_v:'shrimp',
+  clam:'clam', razor_clam_h:'clam', razor_clam_v:'clam',
+  mei_fish:'fish', pomfret_2x3:'fish', pomfret_3x2:'fish',
+  hairtail_U:'hairtail', hairtail_D:'hairtail', hairtail_L:'hairtail', hairtail_R:'hairtail',
+  jellyfish:'jellyfish', squid:'squid',
+};
+const SPEECH_CATEGORY = {
+  crab:      ['That crab was massive!','Sweet crab meat~','Crabtastic!','Pinch me, that was good!'],
+  shrimp:    ['Juiciest shrimp ever!','Shrimp so fresh it snapped!','Prawn star quality!','Shell yeah!'],
+  clam:      ['Plumpest clams in town!','Pearl of a deal!','That clam was a gem!','Bivalve bliss~'],
+  fish:      ['That fish was swimming this morning!','Fin-tastic!','Straight off the boat!','Catch of the day!'],
+  hairtail:  ['Slippery & delicious!','That hairtail hit different','Long & tasty!','Silver belt special!'],
+  jellyfish: ['Jiggly & refreshing!','That jelly had bounce!','Bouncy goodness!','Zingy and crisp!'],
+  squid:     ['Tender tentacles!','Ink-redible!','Squid game strong!','Not chewy at all!'],
+  general:   ['Hook me up another!','Seafood feast!','Fresh off the dock!','You know your fish!',
+              'Best catch today!','Ocean to order!','Taste the sea!','Five stars no cap!','Running this market!','Certified fresh!'],
+};
 const BASKET_TYPES = [
   { w:2, h:3, shells:5  },  // 6 cells
   { w:3, h:2, shells:5  },  // 6 cells
@@ -475,9 +571,264 @@ let basketZone = null;       // { row, col, rows, cols, shells }
 let pendingBasketClear = null; // 篮区消除等待动画完成
 
 // 道具系统
-let powerUps = { bomb: 3, shuffle: 3, undoStep: 3 };
+let powerUps = { bomb: 3, shuffle: 3, undoStep: 3, fishingBan: 1 };
 let powerUpMode = null;  // 'bomb' | null（shuffle / undoStep 瞬发）
 let rescueMode = false;  // 救援模式（允许用贝壳购买的炸弹）
+
+
+// ============ ACHIEVEMENT SYSTEM (global scope) ============
+const STATS_KEY = 'blockPuzzleStats';
+let stats = {
+  totalGamesPlayed: 0, totalBlocksPlaced: 0, totalLinesCleared: 0,
+  totalOrdersCompleted: 0, totalSeafoodCleared: 0,
+  bombUsed: 0, shuffleUsed: 0, undoUsed: 0, fishingBanUsed: 0,
+  easterEggsFound: 0,
+};
+(function loadStats() {
+  try {
+    const raw = localStorage.getItem(STATS_KEY);
+    if (raw) Object.assign(stats, JSON.parse(raw));
+  } catch (_) {}
+})();
+function saveStats() { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); }
+
+// Session trackers for achievements
+let sessionPlacedBlocks = 0, sessionMaxCombo = 0, sessionOrders = 0;
+let sessionLinesInPlacement = 0; // lines cleared in current placement
+let gameEnded = false; // prevent double-counting games
+
+const ACHIEVEMENTS_KEY = 'blockPuzzleAchievements';
+let unlockedAchievements = new Set();
+(function loadAchievements() {
+  try {
+    const raw = localStorage.getItem(ACHIEVEMENTS_KEY);
+    if (raw) JSON.parse(raw).forEach(id => unlockedAchievements.add(id));
+  } catch (_) {}
+})();
+function saveAchievements() {
+  localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify([...unlockedAchievements]));
+}
+
+// Achievement exclusive skins (only obtainable via achievements)
+const ACH_EXCLUSIVE_SKINS = {
+  crown_piece:   { type:'piece',    name:'Golden Crown',   desc:'Reach score ≥ 1500', icon:'👑', category:'achievement' },
+  treasure_board:{ type:'board',    name:'Treasure Chest', desc:'Earn 300 shells in one game', icon:'🏦', category:'achievement' },
+  chef_hat:      { type:'customer', name:'Chef Master',   desc:'Clear 300 seafood pieces', icon:'👨\u200D🍳', category:'achievement' },
+  ocean_depths:  { type:'theme',    name:'Ocean Depths',   desc:'Deep sea bioluminescent cyan', icon:'🌊', category:'achievement' },
+};
+
+const ACHIEVEMENTS = [
+  // --- Free Play ---
+  { id:'double_whammy', name:'Double Whammy', desc:'Clear 2+ lines in one placement', icon:'⚡', target:2, current:() => sessionLinesInPlacement, reward:{type:'shells',amount:50},
+    check:() => sessionLinesInPlacement >= 2 },
+  { id:'rising_star', name:'Rising Star', desc:'Score ≥ 100 in one game', icon:'🎯', target:100, current:() => score, reward:{type:'shells',amount:50},
+    check:() => score >= 100 },
+  { id:'score_expert', name:'Score Expert', desc:'Score ≥ 300 in one game', icon:'🏆', target:300, current:() => score, reward:{type:'shells',amount:80},
+    check:() => score >= 300 },
+  { id:'score_master', name:'Score Master', desc:'Score ≥ 500 in one game', icon:'👑', target:500, current:() => score, reward:{type:'shells',amount:100},
+    check:() => score >= 500 },
+  { id:'score_emperor', name:'Score Emperor', desc:'Score ≥ 1500 in one game', icon:'👑', target:1500, current:() => score, reward:{type:'skin',skinId:'crown_piece'},
+    check:() => score >= 1500 },
+  { id:'combo_rookie', name:'Combo Rookie', desc:'Reach 3× combo in one game', icon:'🔗', target:3, current:() => sessionMaxCombo, reward:{type:'shells',amount:50},
+    check:() => sessionMaxCombo >= 3 },
+  { id:'combo_pro', name:'Combo Pro', desc:'Reach 6× combo in one game', icon:'🔗', target:6, current:() => sessionMaxCombo, reward:{type:'shells',amount:80},
+    check:() => sessionMaxCombo >= 6 },
+
+  // --- Free Play cumulative ---
+  { id:'line_cleaner_b', name:'Line Cleaner: Bronze', desc:'Clear 50 lines in total', icon:'🧹', target:50, current:() => stats.totalLinesCleared, reward:{type:'shells',amount:50},
+    check:() => stats.totalLinesCleared >= 50 },
+  { id:'line_cleaner_s', name:'Line Cleaner: Silver', desc:'Clear 200 lines in total', icon:'🧹', target:200, current:() => stats.totalLinesCleared, reward:{type:'shells',amount:80},
+    check:() => stats.totalLinesCleared >= 200 },
+  { id:'line_cleaner_g', name:'Line Cleaner: Gold', desc:'Clear 500 lines in total', icon:'🧹', target:500, current:() => stats.totalLinesCleared, reward:{type:'shells',amount:100},
+    check:() => stats.totalLinesCleared >= 500 },
+  { id:'regular_b', name:'Regular: Bronze', desc:'Play 10 games in total', icon:'🎮', target:10, current:() => stats.totalGamesPlayed, reward:{type:'shells',amount:50},
+    check:() => stats.totalGamesPlayed >= 10 },
+  { id:'regular_s', name:'Regular: Silver', desc:'Play 50 games in total', icon:'🎮', target:50, current:() => stats.totalGamesPlayed, reward:{type:'shells',amount:80},
+    check:() => stats.totalGamesPlayed >= 50 },
+  { id:'regular_g', name:'Regular: Gold', desc:'Play 100 games in total', icon:'🎮', target:100, current:() => stats.totalGamesPlayed, reward:{type:'shells',amount:100},
+    check:() => stats.totalGamesPlayed >= 100 },
+
+  // --- Market Mode ---
+  { id:'first_order', name:'First Order', desc:'Complete your first order', icon:'🛒', target:1, current:() => stats.totalOrdersCompleted, reward:{type:'shells',amount:50},
+    check:() => stats.totalOrdersCompleted >= 1 },
+  { id:'busy_kitchen', name:'Busy Kitchen', desc:'Complete 5 orders in one game', icon:'🍳', target:5, current:() => sessionOrders, reward:{type:'shells',amount:80},
+    check:() => sessionOrders >= 5 },
+  { id:'hot_kitchen', name:'Hot Kitchen', desc:'Complete 12 orders in one game', icon:'🔥', target:12, current:() => sessionOrders, reward:{type:'shells',amount:100},
+    check:() => sessionOrders >= 12 },
+  { id:'shell_rookie', name:'Shell Rookie', desc:'Earn 50 shells in one game', icon:'🐚', target:50, current:() => sessionShells, reward:{type:'shells',amount:50},
+    check:() => sessionShells >= 50 },
+  { id:'shell_expert', name:'Shell Expert', desc:'Earn 150 shells in one game', icon:'💰', target:150, current:() => sessionShells, reward:{type:'shells',amount:80},
+    check:() => sessionShells >= 150 },
+  { id:'shell_tycoon', name:'Shell Tycoon', desc:'Earn 300 shells in one game', icon:'🏦', target:300, current:() => sessionShells, reward:{type:'skin',skinId:'treasure_board'},
+    check:() => sessionShells >= 300 },
+
+  // --- Market cumulative ---
+  { id:'seafood_chef_b', name:'Seafood Chef: Bronze', desc:'Clear 30 seafood pieces in total', icon:'🍣', target:30, current:() => stats.totalSeafoodCleared, reward:{type:'shells',amount:80},
+    check:() => stats.totalSeafoodCleared >= 30 },
+  { id:'seafood_chef_s', name:'Seafood Chef: Silver', desc:'Clear 100 seafood pieces in total', icon:'🍣', target:100, current:() => stats.totalSeafoodCleared, reward:{type:'shells',amount:100},
+    check:() => stats.totalSeafoodCleared >= 100 },
+  { id:'seafood_chef_g', name:'Seafood Chef: Gold', desc:'Clear 300 seafood pieces in total', icon:'🍣', target:300, current:() => stats.totalSeafoodCleared, reward:{type:'skin',skinId:'chef_hat'},
+    check:() => stats.totalSeafoodCleared >= 300 },
+  { id:'gold_service', name:'Gold Service', desc:'Complete 50 orders in total', icon:'🤝', target:50, current:() => stats.totalOrdersCompleted, reward:{type:'shells',amount:80},
+    check:() => stats.totalOrdersCompleted >= 50 },
+  { id:'shop_owner', name:'Shop Owner', desc:'Complete 150 orders in total', icon:'🏪', target:150, current:() => stats.totalOrdersCompleted, reward:{type:'shells',amount:100},
+    check:() => stats.totalOrdersCompleted >= 150 },
+
+  // --- Power-ups ---
+  { id:'bomber', name:'Bomber', desc:'Use Bomb 10 times', icon:'💣', target:10, current:() => stats.bombUsed, reward:{type:'shells',amount:50},
+    check:() => stats.bombUsed >= 10 },
+  { id:'shuffler', name:'Shuffler', desc:'Use Shuffle 10 times', icon:'🔀', target:10, current:() => stats.shuffleUsed, reward:{type:'shells',amount:50},
+    check:() => stats.shuffleUsed >= 10 },
+  { id:'time_traveler', name:'Time Traveler', desc:'Use Undo 20 times', icon:'↩️', target:20, current:() => stats.undoUsed, reward:{type:'shells',amount:50},
+    check:() => stats.undoUsed >= 20 },
+
+  // --- Collection ---
+  { id:'collector', name:'Collector', desc:'Own 5 skins', icon:'🎨', target:5, current:() => ownedSkins.board.length + ownedSkins.piece.length + ownedSkins.customer.length + ownedSkins.theme.length, reward:{type:'shells',amount:80},
+    check:() => ownedSkins.board.length + ownedSkins.piece.length + ownedSkins.customer.length + ownedSkins.theme.length >= 5 },
+  { id:'master_builder', name:'Master Builder', desc:'Place 500 blocks in total', icon:'🏗️', target:500, current:() => stats.totalBlocksPlaced, reward:{type:'skin',skinId:'ocean_depths'},
+    check:() => stats.totalBlocksPlaced >= 500 },
+
+  // ── 隐藏彩蛋成就 — 仅在发现第一个彩蛋后显示 ──
+  { id:'egg_1', name:'Curious Explorer', desc:'Find your first easter egg', icon:'🥚', target:1, current:() => stats.easterEggsFound, reward:{type:'shells',amount:30}, hidden:true,
+    check:() => stats.easterEggsFound >= 1 },
+  { id:'egg_3', name:'Easter Egg Hunter', desc:'Discover 3 easter eggs', icon:'🥚🥚', target:3, current:() => stats.easterEggsFound, reward:{type:'shells',amount:60}, hidden:true,
+    check:() => stats.easterEggsFound >= 3 },
+  { id:'egg_5', name:'Secret Keeper', desc:'Discover 5 easter eggs', icon:'🔮', target:5, current:() => stats.easterEggsFound, reward:{type:'shells',amount:100}, hidden:true,
+    check:() => stats.easterEggsFound >= 5 },
+  { id:'egg_all', name:'Easter Egg Grand Slam', desc:'Find every hidden easter egg', icon:'👑', target:10, current:() => stats.easterEggsFound, reward:{type:'shells',amount:200}, hidden:true,
+    check:() => stats.easterEggsFound >= 10 },
+];
+
+let toastQueue = [];
+let toastActive = false;
+
+function grantReward(reward) {
+  if (reward.type === 'shells') {
+    shells += reward.amount;
+    if (gameMode === 'market') sessionShells += reward.amount;
+  } else if (reward.type === 'skin') {
+    const skinDef = ACH_EXCLUSIVE_SKINS[reward.skinId];
+    if (skinDef) {
+      const cat = skinDef.type;
+      if (!ownedSkins[cat].includes(reward.skinId)) {
+        ownedSkins[cat].push(reward.skinId);
+        // Push to the appropriate skin list so it appears in shop/settings
+        const list = cat==='piece' ? SKIN_PIECES : cat==='board' ? SKIN_BOARDS : cat==='customer' ? SKIN_CUSTOMERS : SKIN_THEMES;
+        if (list && !list.find(s => s.id === reward.skinId)) {
+          list.push({ id: reward.skinId, name: skinDef.name, desc: skinDef.desc, icon: skinDef.icon, price: null, category: skinDef.category });
+        }
+        saveSkinState();
+      }
+    }
+  }
+  marketSaveShells();
+  updateScoreUI();
+}
+
+function showToast(ach) {
+  toastQueue.push(ach);
+  if (!toastActive) processToastQueue();
+}
+function processToastQueue() {
+  if (toastQueue.length === 0) { toastActive = false; return; }
+  toastActive = true;
+  const ach = toastQueue.shift();
+  const el = document.getElementById('achToast');
+  if (!el) { toastActive = false; return; }
+  const iconEl = document.getElementById('achToastIcon');
+  const nameEl = document.getElementById('achToastName');
+  const descEl = document.getElementById('achToastDesc');
+  const rewardEl = document.getElementById('achToastReward');
+  iconEl.textContent = ach.icon;
+  nameEl.textContent = t(ach.name);
+  descEl.textContent = t(ach.desc);
+  const r = ach.reward;
+  rewardEl.textContent = r.type === 'shells' ? `+${r.amount} 🐚` : t('+ Exclusive Skin 🎁');
+  el.classList.remove('hidden', 'ach-toast-out');
+  el.classList.add('ach-toast-in');
+  setTimeout(() => {
+    el.classList.remove('ach-toast-in');
+    el.classList.add('ach-toast-out');
+    setTimeout(() => { el.classList.add('hidden'); processToastQueue(); }, 400);
+  }, 3500);
+}
+
+let _achCheckTimeout = null;
+function checkAchievements() {
+  if (_achCheckTimeout) return;
+  _achCheckTimeout = setTimeout(() => {
+    _achCheckTimeout = null;
+    let anyUnlocked = false;
+    for (const ach of ACHIEVEMENTS) {
+      if (unlockedAchievements.has(ach.id)) continue;
+      try {
+        if (ach.check()) {
+          unlockedAchievements.add(ach.id);
+          grantReward(ach.reward);
+          showToast(ach);
+          anyUnlocked = true;
+        }
+      } catch (_) {}
+    }
+    if (anyUnlocked) saveAchievements();
+  }, 300);
+}
+
+function resetSessionTrackers() {
+  sessionPlacedBlocks = 0;
+  sessionMaxCombo = 0;
+  sessionOrders = 0;
+  sessionLinesInPlacement = 0;
+  gameEnded = false;
+}
+
+// Build achievement panel HTML (called after DOM ready)
+function buildAchievementPanel() {
+  const container = document.getElementById('achievementList');
+  if (!container) return;
+  container.innerHTML = ACHIEVEMENTS.map(ach => {
+    const unlocked = unlockedAchievements.has(ach.id);
+    // 隐藏成就：未解锁时显示？？？
+    const isHiddenLocked = ach.hidden && !unlocked;
+    const r = ach.reward;
+    const rewardText = r.type === 'shells' ? `+${r.amount} 🐚` : t('Unlocks Skin 🎁');
+
+    // Progress bar
+    let progressHtml = '';
+    if (ach.target && ach.current) {
+      const cur = Math.min(ach.current(), ach.target);
+      const pct = ach.target > 0 ? Math.round((cur / ach.target) * 100) : 0;
+      if (unlocked) {
+        progressHtml = `<div class="ach-progress"><div class="ach-progress-bar"><div class="ach-progress-fill ach-progress-done" style="width:100%"></div></div><div class="ach-progress-text completed">${t('Completed ✓')}</div></div>`;
+      } else {
+        progressHtml = `<div class="ach-progress"><div class="ach-progress-bar"><div class="ach-progress-fill" style="width:${pct}%"></div></div><div class="ach-progress-text">${isHiddenLocked ? '???' : cur + ' / ' + ach.target}</div></div>`;
+      }
+    }
+
+    return `
+      <div class="ach-item ${unlocked ? 'unlocked' : 'locked'}">
+        <div class="ach-icon">${unlocked ? ach.icon : (isHiddenLocked ? '❓' : '🔒')}</div>
+        <div class="ach-info">
+          <div class="ach-name">${isHiddenLocked ? '???' : t(ach.name)}</div>
+          <div class="ach-desc">${isHiddenLocked ? '???' : t(ach.desc)}</div>
+          ${progressHtml}
+        </div>
+        <div class="ach-reward">${unlocked ? rewardText : (isHiddenLocked ? '❓' : '???')}</div>
+      </div>`;
+  }).join('');
+  const el = document.getElementById('achProgress');
+  if (el) el.textContent = t('Unlocked {n} / {m}', {n: unlockedAchievements.size, m: ACHIEVEMENTS.length});
+}
+
+let _achPanelRefreshId = null;
+function startAchievementPanelRefresh() {
+  stopAchievementPanelRefresh();
+  _achPanelRefreshId = setInterval(buildAchievementPanel, 1200);
+}
+function stopAchievementPanelRefresh() {
+  if (_achPanelRefreshId) { clearInterval(_achPanelRefreshId); _achPanelRefreshId = null; }
+}
+// ============ END ACHIEVEMENT SYSTEM ============
 
 // ===== Canvas 引用 =====
 let canvas, ctx;
@@ -495,6 +846,7 @@ function init() {
   loadSeafoodImages();
   loadSkinImages();
   loadSkinState();
+  applyLanguage(detectLanguage()); // i18n: 必须在 updateStartHint 之前
 
   // 方块预览小画布
   document.querySelectorAll('.block-card canvas').forEach(c => {
@@ -519,11 +871,438 @@ function init() {
   setupEvents();
   requestAnimationFrame(gameLoop);
 
+  // i18n: 语言切换时刷新 JS 生成内容
+  I18N_REFRESH_HOOKS.push(() => {
+    updateScoreUI();
+    updatePowerUpUI();
+    renderPreviewCanvases();
+    // 帮助弹窗打开时刷新
+    if (!document.getElementById('helpOverlay').classList.contains('hidden')) showHelp();
+    // 成就面板打开时刷新
+    if (!document.getElementById('achievementOverlay').classList.contains('hidden')) buildAchievementPanel();
+    // 商店打开时刷新
+    if (!document.getElementById('shopOverlay').classList.contains('hidden')) {
+      renderSkinShop(currentSkinCat);
+      updateShopOverlay();
+    }
+    // 设置打开时刷新皮肤选择器 + 布局选择器
+    if (!document.getElementById('settingsOverlay').classList.contains('hidden')) {
+      populateSettingsSkinSelectors();
+      const ls = document.getElementById('settingLayout');
+      if (ls) {
+        const saved = ls.value;
+        ls.innerHTML = [
+          { v:'desktop', k:'Desktop' },
+          { v:'mobile',  k:'Mobile' },
+        ].map(o => `<option value="${o.v}">${t(o.k)}</option>`).join('');
+        ls.value = saved;
+      }
+    }
+    // 游戏结束弹窗文字
+    const ov = document.getElementById('overlay');
+    if (!ov.classList.contains('hidden')) updateGameOverTexts();
+    // 开始页提示
+    updateStartHint();
+    // 顾客面板
+    if (gameMode === 'market') updateCustomerUI();
+  });
+
+  // i18n: 语言选择器
+  const langSel = document.getElementById('settingLanguage');
+  if (langSel) {
+    langSel.innerHTML = I18N_LANGUAGES.map(l =>
+      `<option value="${l.code}">${l.label}</option>`
+    ).join('');
+    langSel.value = currentLang;
+    langSel.addEventListener('change', () => applyLanguage(langSel.value));
+  }
+
+  // 布局切换
+  const LAYOUT_KEY = 'blockPuzzleLayout';
+  function applyLayout(v) {
+    localStorage.setItem(LAYOUT_KEY, v);
+    document.body.classList.toggle('layout-mobile', v === 'mobile');
+    if (layoutSel) layoutSel.value = v;
+    updateMobileHeader();
+  }
+  const layoutSel = document.getElementById('settingLayout');
+  if (layoutSel) {
+    layoutSel.innerHTML = [
+      { v:'desktop', k:'Desktop' },
+      { v:'mobile',  k:'Mobile' },
+    ].map(o => `<option value="${o.v}">${t(o.k)}</option>`).join('');
+    const savedLayout = localStorage.getItem(LAYOUT_KEY);
+    if (savedLayout) {
+      applyLayout(savedLayout);
+    } else {
+      // 首次访问：窄屏自动手机布局
+      applyLayout(window.innerWidth < 700 ? 'mobile' : 'desktop');
+    }
+    layoutSel.addEventListener('change', () => applyLayout(layoutSel.value));
+  }
+
+  // 手机顶部栏：绑定按钮事件
+  document.getElementById('mhSettingsBtn').addEventListener('click', () => {
+    initAudio();
+    syncSoundToggleUI();
+    populateSettingsSkinSelectors();
+    document.getElementById('settingsOverlay').classList.remove('hidden');
+  });
+  document.getElementById('mhHelpBtn').addEventListener('click', () => {
+    initAudio();
+    showHelp();
+    document.getElementById('helpOverlay').classList.remove('hidden');
+  });
+  document.getElementById('mhAchBtn').addEventListener('click', () => {
+    initAudio();
+    buildAchievementPanel();
+    document.getElementById('achievementOverlay').classList.remove('hidden');
+  });
+  // 手机菜单：↩ 按钮弹出 New Game / Back to Home
+  const mhMenu = document.getElementById('mhMenu');
+  const mhMenuBtn = document.getElementById('mhMenuBtn');
+  mhMenuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    initAudio();
+    mhMenu.classList.toggle('show');
+  });
+  document.addEventListener('click', (e) => {
+    if (!mhMenu.contains(e.target) && e.target !== mhMenuBtn) {
+      mhMenu.classList.remove('show');
+    }
+  });
+  document.getElementById('mhNewGame').addEventListener('click', () => {
+    mhMenu.classList.remove('show');
+    if (!gameOver) {
+      document.getElementById('confirmNewGameOverlay').classList.remove('hidden');
+    } else {
+      startNewGame();
+    }
+  });
+  document.getElementById('mhBackHome').addEventListener('click', () => {
+    mhMenu.classList.remove('show');
+    document.getElementById('confirmBackOverlay').classList.remove('hidden');
+  });
+
   // Play 按钮 → 打开模式选择
+  // ===== 彩蛋：点击 Logo 10 下触发海鲜雨 =====
+  let logoTaps = 0;
+  let logoTapTimer = null;
+  const logoImg = document.querySelector('.logo-icon');
+  // 绑定在父元素上，防止 z-index 遮挡
+  const startContent = document.querySelector('.start-content');
+  if (logoImg && startContent) {
+    logoImg.style.cursor = 'pointer';
+    startContent.addEventListener('click', (e) => {
+      if (e.target !== logoImg && !logoImg.contains(e.target)) return;
+      initAudio();
+      logoTaps++;
+      logoImg.style.transform = 'scale(1.15)';
+      setTimeout(() => { logoImg.style.transform = ''; }, 100);
+      playTone(880 + logoTaps * 60, 0.08, 'sine', 0.04);
+      clearTimeout(logoTapTimer);
+      logoTapTimer = setTimeout(() => { logoTaps = 0; }, 2000);
+      if (logoTaps >= 10) {
+        logoTaps = 0;
+        window._markEasterEgg('seafood_rain');
+        triggerSeafoodRain();
+      }
+    });
+  }
+
+  function triggerSeafoodRain() {
+    const imgs = SEAFOOD_PIECES.map(s => s.imgSrc).filter(Boolean);
+    const emojiMix = ['🫧','⭐','💎','🐚','✨','💫','🌊']; // 小点缀
+    const phrases = [
+      { title: 'The tide is high!', sub: 'A seafood storm is coming...' },
+      { title: 'The ocean provides!', sub: 'Catch of a lifetime!' },
+      { title: 'Poseidon approves!', sub: 'The sea gods are pleased.' },
+      { title: 'Tsunami of flavor!', sub: 'Fresh from the deep!' },
+      { title: 'A bountiful harvest!', sub: 'The nets are overflowing.' },
+    ];
+    const p = phrases[Math.floor(Math.random() * phrases.length)];
+
+    // 屏幕短暂蓝闪
+    document.body.style.transition = 'background 0.3s';
+    const origBg = document.body.style.background;
+    document.body.style.background = 'radial-gradient(circle, rgba(30,144,255,0.3), rgba(0,0,50,0.5))';
+    setTimeout(() => { document.body.style.background = origBg; }, 400);
+
+    // 中央台词
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;top:50%;left:50%;z-index:9999;pointer-events:none;font-family:inherit;text-align:center;'
+      + 'transform:translate(-50%,-50%);';
+    toast.innerHTML = `<div style="font-size:36px;font-weight:800;color:#FFD700;text-shadow:0 0 30px rgba(255,215,0,0.9),0 0 60px rgba(255,215,0,0.5),0 4px 12px rgba(0,0,0,0.6);animation:eeFade 3.5s ease-out forwards;">${t(p.title)}</div>
+      <div style="font-size:16px;color:rgba(255,255,255,0.7);margin-top:8px;text-shadow:0 2px 6px rgba(0,0,0,0.5);animation:eeFade 3s ease-out forwards;">${t(p.sub)}</div>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3600);
+
+    // 第一波：海鲜贴图倾盆
+    for (let i = 0; i < 35; i++) {
+      setTimeout(() => {
+        const src = imgs[Math.floor(Math.random() * imgs.length)];
+        const img = document.createElement('img');
+        img.className = 'seafood-rain';
+        img.src = src;
+        img.style.left = (5 + Math.random() * 90) + '%';
+        img.style.top = -(40 + Math.random() * 120) + 'px';
+        img.style.width = (40 + Math.random() * 70) + 'px';
+        img.style.height = 'auto';
+        img.style.setProperty('--drift', ((Math.random() - 0.5) * 250) + 'px');
+        img.style.setProperty('--rotate', ((Math.random() - 0.5) * 720) + 'deg');
+        img.style.animationDuration = (2 + Math.random() * 3) + 's';
+        img.style.opacity = (0.75 + Math.random() * 0.25);
+        document.body.appendChild(img);
+        setTimeout(() => img.remove(), 6000);
+      }, i * 30);
+    }
+    // 第二波：小点缀散落
+    setTimeout(() => {
+      for (let i = 0; i < 25; i++) {
+        setTimeout(() => {
+          const el = document.createElement('div');
+          el.className = 'seafood-rain';
+          el.textContent = emojiMix[Math.floor(Math.random() * emojiMix.length)];
+          el.style.left = (5 + Math.random() * 90) + '%';
+          el.style.top = -(20 + Math.random() * 60) + 'px';
+          el.style.fontSize = (14 + Math.random() * 24) + 'px';
+          el.style.setProperty('--drift', ((Math.random() - 0.5) * 120) + 'px');
+          el.style.setProperty('--rotate', ((Math.random() - 0.5) * 540) + 'deg');
+          el.style.animationDuration = (3 + Math.random() * 4) + 's';
+          el.style.opacity = (0.5 + Math.random() * 0.4);
+          document.body.appendChild(el);
+          setTimeout(() => el.remove(), 8000);
+        }, i * 25);
+      }
+    }, 800);
+    sfxClear(8);
+  }
+
+  // 🫧 气泡弹出彩蛋（全局作用域方便任何地方调用）
+  // 🎚️ DJ搓碟 Toast
+  window._showScratchToast = function() {
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;top:30%;left:50%;transform:translate(-50%,-50%);z-index:9999;'
+      + 'font-size:24px;font-weight:800;color:#FFD700;text-shadow:0 0 20px rgba(255,215,0,0.6),0 2px 6px rgba(0,0,0,0.5);'
+      + 'pointer-events:none;animation:eeFade 2.5s ease-out forwards;font-family:inherit;';
+    toast.textContent = t('DJ mode activated!');
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2600);
+  };
+
+  // 🔍 彩蛋数据（名称+描述，仅用于展示面板）
+  const EASTER_EGGS = [
+    { id:'seafood_rain', name:'Seafood Rain', desc:'Click the logo 10 times', icon:'🦐' },
+    { id:'midnight',     name:'Midnight Fishing', desc:'Open the game late at night', icon:'🕐' },
+    { id:'bubble',       name:'Bubble Pop', desc:'Tap an empty cell 5 times', icon:'🫧' },
+    { id:'dj_scratch',   name:'DJ Scratch', desc:'Scrub the volume slider', icon:'🎧' },
+    { id:'title_hold',   name:'Signature', desc:'Hold the title image', icon:'🖼️' },
+    { id:'queue_poke',   name:'Impatient Customer', desc:'Poke a waiting customer 3 times', icon:'👥' },
+    { id:'title_fall',   name:'You Broke It!', desc:'Click the in-game title', icon:'🪧' },
+    { id:'dead_crab',    name:'Dead Crab', desc:'Get stuck with no moves (rare)', icon:'🦀' },
+    { id:'baifujin',     name:'Won\'t Fit!', desc:'Try placing where it doesn\'t fit (rare)', icon:'🗣️' },
+    { id:'no_discount',  name:'No Discount!', desc:'Beg for a discount 5 times', icon:'🛒' },
+  ];
+
+  function buildEasterEggPanel() {
+    const container = document.getElementById('easterEggList');
+    if (!container) return;
+    const found = stats._foundEggs || {};
+    const foundCount = Object.keys(found).length;
+    container.innerHTML = EASTER_EGGS.filter(e => found[e.id]).map(e => `
+      <div class="ach-item unlocked">
+        <div class="ach-icon">${e.icon}</div>
+        <div class="ach-info">
+          <div class="ach-name">${t(e.name)}</div>
+          <div class="ach-desc">${t(e.desc)}</div>
+        </div>
+      </div>
+    `).join('');
+    if (foundCount === 0) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px;font-size:14px;">???</div>';
+    }
+  }
+
+  // 成就面板tab切换
+  document.querySelectorAll('.ach-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.ach-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const isAch = tab.dataset.achTab === 'achievements';
+      document.getElementById('achievementList').style.display = isAch ? '' : 'none';
+      document.getElementById('easterEggList').style.display = isAch ? 'none' : 'flex';
+      document.getElementById('achProgress').style.display = isAch ? '' : 'none';
+      if (!isAch) buildEasterEggPanel();
+    });
+  });
+
+  // 🔍 彩蛋计数器
+  window._markEasterEgg = function(name) {
+    if (!stats._foundEggs) stats._foundEggs = {};
+    if (stats._foundEggs[name]) return; // 已发现过不重复计数
+    stats._foundEggs[name] = true;
+    stats.easterEggsFound = (stats.easterEggsFound || 0) + 1;
+    saveStats();
+    checkAchievements();
+  };
+
+  window._triggerBubble = function(row, col) {
+    window._markEasterEgg('bubble');
+    const cx = gx(col) + CELL_SIZE / 2;
+    const cy = gy(row) + CELL_SIZE / 2;
+    const canvasRect = canvas.getBoundingClientRect();
+    const scaleX = canvasRect.width / CANVAS_SIZE;
+    const scaleY = canvasRect.height / CANVAS_SIZE;
+    const bx = canvasRect.left + cx * scaleX;
+    const by = canvasRect.top + cy * scaleY;
+
+    // 串小泡泡：逐个冒出，大小随机，略微偏移
+    const count = 6 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble-pop';
+        const size = 10 + Math.random() * 18;
+        bubble.style.width = size + 'px';
+        bubble.style.height = size + 'px';
+        bubble.style.marginLeft = -(size / 2) + 'px';
+        bubble.style.marginTop = -(size / 2) + 'px';
+        bubble.style.left = (bx + (Math.random() - 0.5) * 30) + 'px';
+        bubble.style.top = (by + (Math.random() - 0.5) * 10) + 'px';
+        bubble.style.animationDuration = (0.6 + Math.random() * 0.8) + 's';
+        document.body.appendChild(bubble);
+        setTimeout(() => bubble.remove(), 1500);
+
+        // 噗音效
+        playTone(400 + Math.random() * 200, 0.04, 'sine', 0.015);
+      }, i * 50);
+    }
+    // 咕噜咕噜文字
+    const bt = document.createElement('div');
+    bt.style.cssText = 'position:fixed;top:25%;left:50%;transform:translateX(-50%);z-index:9999;'
+      + 'font-size:18px;font-weight:700;color:#FFD700;text-shadow:0 0 12px rgba(255,215,0,0.5);'
+      + 'pointer-events:none;animation:eeFade 2.5s ease-out forwards;font-family:inherit;';
+    bt.textContent = t('blub blub blub...');
+    document.body.appendChild(bt);
+    setTimeout(() => bt.remove(), 2600);
+  };
+
+  // 🖼️ 标题图长按 2 秒彩蛋
+  (function() {
+    const titleImgs = document.querySelectorAll('.title-img');
+    if (titleImgs.length) {
+      let pressTimer = null;
+      function onPressStart(e) {
+        pressTimer = setTimeout(() => {
+          window._markEasterEgg('title_hold');
+          const toast = document.createElement('div');
+          toast.style.cssText = 'position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);z-index:9999;'
+            + 'font-size:20px;font-weight:700;color:#FFD700;text-shadow:0 0 16px rgba(255,215,0,0.6);'
+            + 'pointer-events:none;animation:eeFade 3s ease-out forwards;font-family:inherit;';
+          toast.textContent = t('Made by Chad Bradley');
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 3100);
+        }, 2000);
+        e.preventDefault();
+      }
+      function onPressEnd() { clearTimeout(pressTimer); }
+      titleImgs.forEach(img => {
+        img.addEventListener('mousedown', onPressStart);
+        img.addEventListener('mouseup', onPressEnd);
+        img.addEventListener('mouseleave', onPressEnd);
+        img.addEventListener('touchstart', onPressStart, {passive: false});
+        img.addEventListener('touchend', onPressEnd);
+        img.addEventListener('touchcancel', onPressEnd);
+      });
+    }
+  })();
+
+  // 🪧 游戏内标题图点击：掉下来 + "赔钱！"
+  (function() {
+    const panelTitle = document.querySelector('.panel .title-img');
+    if (panelTitle) {
+      panelTitle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window._markEasterEgg('title_fall');
+        // 扣 10 贝壳，不够清零
+        const deducted = Math.min(shells, 10);
+        shells = Math.max(0, shells - 10);
+        marketSaveShells();
+        updateScoreUI();
+        // -10 飘字
+        const minus = document.createElement('div');
+        minus.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);z-index:9999;'
+          + 'font-size:22px;font-weight:800;color:#FF6B6B;text-shadow:0 0 10px rgba(255,100,100,0.5);'
+          + 'pointer-events:none;animation:eeFade 2s ease-out forwards;font-family:inherit;';
+        minus.textContent = '- ' + deducted + ' \u{1F41A}';
+        document.body.appendChild(minus);
+        setTimeout(() => minus.remove(), 2100);
+        // 暂停浮动，然后掉落
+        panelTitle.style.animation = 'none';
+        void panelTitle.offsetWidth; // 强制重绘
+        panelTitle.style.transition = 'transform 0.5s ease-in, opacity 0.5s ease-in';
+        panelTitle.style.transform = 'translateY(120px) rotate(12deg)';
+        panelTitle.style.opacity = '0';
+        // Toast
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;top:35%;left:50%;transform:translate(-50%,-50%);z-index:9999;'
+          + 'font-size:28px;font-weight:800;color:#FF6B6B;text-shadow:0 0 16px rgba(255,100,100,0.5),0 2px 6px rgba(0,0,0,0.5);'
+          + 'pointer-events:none;animation:eeFade 2.5s ease-out forwards;font-family:inherit;';
+        toast.textContent = t('You broke it!');
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2800);
+        // 恢复：从上方掉下来，渐显，到位后恢复浮动
+        setTimeout(() => {
+          panelTitle.style.transition = 'none';
+          panelTitle.style.transform = 'translateY(-80px) rotate(-5deg)';
+          panelTitle.style.opacity = '0';
+          void panelTitle.offsetWidth; // 强制重绘
+          panelTitle.style.transition = 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease-in';
+          panelTitle.style.transform = 'translateY(0) rotate(0deg)';
+          panelTitle.style.opacity = '1';
+          // 浮动动画延迟恢复
+          setTimeout(() => {
+            panelTitle.style.transition = '';
+            panelTitle.style.animation = '';
+          }, 600);
+        }, 3000);
+      });
+    }
+  })();
+
   document.getElementById('btnPlay').addEventListener('click', () => {
     initAudio();
     document.getElementById('startOverlay').classList.add('hidden');
     document.getElementById('modeSelectOverlay').classList.remove('hidden');
+  });
+
+  // 👥 顾客队列连点彩蛋（事件委托）
+  let queueClickCounts = {};
+  let queueClickTimers = {};
+  document.getElementById('queueRow').addEventListener('click', (e) => {
+    if (gameMode !== 'market' || gameOver) return;
+    const slot = e.target.closest('.queue-slot');
+    if (!slot) return;
+    const idx = Array.from(slot.parentNode.children).indexOf(slot);
+    if (!customerQueue[idx]) return;
+    queueClickCounts[idx] = (queueClickCounts[idx] || 0) + 1;
+    clearTimeout(queueClickTimers[idx]);
+    queueClickTimers[idx] = setTimeout(() => { queueClickCounts[idx] = 0; }, 1500);
+    if (queueClickCounts[idx] >= 3) {
+      queueClickCounts[idx] = 0;
+      window._markEasterEgg('queue_poke');
+      // 顾客"回头"：抖动一下
+      slot.style.transform = 'rotate(-8deg)';
+      setTimeout(() => { slot.style.transform = 'rotate(6deg)'; }, 80);
+      setTimeout(() => { slot.style.transform = ''; }, 160);
+      const toast = document.createElement('div');
+      toast.style.cssText = 'position:fixed;top:35%;left:50%;transform:translate(-50%,-50%);z-index:9999;'
+        + 'font-size:18px;font-weight:700;color:#FFD700;text-shadow:0 0 14px rgba(255,215,0,0.6);'
+        + 'pointer-events:none;animation:eeFade 3s ease-out forwards;font-family:inherit;';
+      toast.textContent = t('I\'m next, right?') + ' \u{1F644}';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3100);
+    }
   });
 
   // 模式选择 - Free Play
@@ -549,6 +1328,7 @@ function init() {
     if (e.target === e.currentTarget) {
       e.currentTarget.classList.add('hidden');
       document.getElementById('startOverlay').classList.remove('hidden');
+      updateStartHint();
     }
   });
 
@@ -569,6 +1349,27 @@ function init() {
   });
 
   // 关闭商店弹窗
+  // 🛒 商店砍价彩蛋：余额不足时连点购买按钮 5 下
+  let shopPokeCount = 0, shopPokeTimer = null;
+  document.getElementById('shopOverlay').addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-buy');
+    if (!btn || !btn.disabled) { shopPokeCount = 0; return; }
+    shopPokeCount++;
+    clearTimeout(shopPokeTimer);
+    shopPokeTimer = setTimeout(() => { shopPokeCount = 0; }, 1500);
+    if (shopPokeCount >= 5) {
+      shopPokeCount = 0;
+      window._markEasterEgg('no_discount');
+      const toast = document.createElement('div');
+      toast.style.cssText = 'position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);z-index:9999;'
+        + 'font-size:20px;font-weight:700;color:#FFD700;text-shadow:0 0 14px rgba(255,215,0,0.5);'
+        + 'pointer-events:none;animation:eeFade 2.5s ease-out forwards;font-family:inherit;';
+      toast.textContent = t('I said NO discount!');
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2600);
+    }
+  });
+
   document.getElementById('btnCloseShop').addEventListener('click', () => {
     document.getElementById('shopOverlay').classList.add('hidden');
   });
@@ -623,6 +1424,21 @@ function init() {
   // 关闭设置弹窗
   document.getElementById('btnCloseSettings').addEventListener('click', () => {
     document.getElementById('settingsOverlay').classList.add('hidden');
+  });
+
+  // 成就弹窗
+  document.getElementById('btnAchievementsStart').addEventListener('click', () => {
+    initAudio();
+    buildAchievementPanel();
+    document.getElementById('achievementOverlay').classList.remove('hidden');
+    startAchievementPanelRefresh();
+  });
+  document.getElementById('btnCloseAchievements').addEventListener('click', () => {
+    document.getElementById('achievementOverlay').classList.add('hidden');
+    stopAchievementPanelRefresh();
+  });
+  document.getElementById('achievementOverlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden');
   });
 
   // 点击遮罩外部关闭弹窗
@@ -681,6 +1497,7 @@ function init() {
       if (!modeSel.classList.contains('hidden')) {
         modeSel.classList.add('hidden');
         document.getElementById('startOverlay').classList.remove('hidden');
+        updateStartHint();
         return;
       }
       document.getElementById('settingsOverlay').classList.add('hidden');
@@ -692,6 +1509,15 @@ function init() {
 }
 
 /** 填充 Settings 面板的皮肤选择器 */
+/** 午夜主题白天隐藏 */
+function isSkinVisible(cat, id) {
+  if (id === 'midnight') {
+    const hour = new Date().getHours();
+    return hour >= 0 && hour < 5;
+  }
+  return true;
+}
+
 function populateSettingsSkinSelectors() {
   const pairs = [
     { cat:'theme',    elId:'settingThemeSkin',     list:SKIN_THEMES },
@@ -705,9 +1531,10 @@ function populateSettingsSkinSelectors() {
     sel.innerHTML = '';
     for (const skin of list) {
       if (!isSkinOwned(cat, skin.id)) continue;
+      if (!isSkinVisible(cat, skin.id)) continue;
       const opt = document.createElement('option');
       opt.value = skin.id;
-      opt.textContent = skin.name;
+      opt.textContent = t(skin.name);
       if (skin.id === activeSkin[cat]) opt.selected = true;
       sel.appendChild(opt);
     }
@@ -737,11 +1564,15 @@ const DRIFT_COLORS = {
   forest:        ['#8ab88a','#c8a870','#a0c860'],
   midnight_gold: ['#e8c848','#c0a030','#a08020'],
   candy:         ['#f4a0b8','#f4c8d8','#e8a0c8'],
+  ocean_depths:  ['#00b8d4','#0097a7','#00e5ff'],
+  midnight:       ['#e8a840','#f0c860','#c87820'],
 };
 const DRIFT_EMOJIS = {
   forest:        ['\ud83c\udf3f','\ud83c\udf42','\ud83c\udf41','\ud83c\udf30','\ud83c\udf44','\ud83c\udf40','\ud83e\udeb5','\ud83e\uded0'],
   midnight_gold: ['\ud83e\ude99','\ud83d\udc8e','\u2b50','\ud83d\udc51','\ud83d\udddd\ufe0f','\ud83c\udfc6','\ud83d\udca0','\ud83e\udee7'],
   candy:         ['\ud83c\udf6d','\ud83e\uddc1','\ud83c\udf6c','\ud83d\udc96','\ud83c\udf66','\ud83c\udf69','\ud83c\udf6b','\ud83c\udf80'],
+  ocean_depths:  ['\ud83c\udf0a','\ud83e\udee7','\ud83d\udc1f','\ud83d\udc20','\ud83d\udc19','\ud83e\udd80','\ud83e\udd91','\ud83d\udc1a'],
+  midnight:       ['\ud83c\udfee','\ud83e\ude94','\u2728','\ud83d\udd25','\ud83d\udcab','\ud83c\udf90','\ud83d\udd6f\ufe0f','\ud83c\udf19'],
 };
 const DRIFT_SEAFOOD = [
   'assets/seafood/clam_1x1.png',
@@ -808,7 +1639,7 @@ function updateStartHint() {
   const hint = document.getElementById('startBestHint');
   let parts = [];
   if (bestScore > 0) {
-    parts.push('Best: <span>' + bestScore + '</span>');
+    parts.push(t('Best') + ': <span>' + bestScore + '</span>');
   }
   const s = parseInt(localStorage.getItem('blockPuzzleShells') || '0');
   if (s > 0 || bestScore === 0) {
@@ -839,6 +1670,7 @@ function isInsideBasketZone(shape, row, col) {
 }
 
 function startNewGame() {
+  resetSessionTrackers();
   grid         = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(0));
   seafoodGrid  = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
   score        = 0;
@@ -1065,6 +1897,9 @@ function placeBlock(row, col) {
     });
   }
   block.placed = true;
+  sessionPlacedBlocks++;
+  stats.totalBlocksPlaced++;
+  saveStats();
 
   const placed = cellCount(block.shape);
   if (gameMode === 'freePlay') {
@@ -1082,6 +1917,7 @@ function placeBlock(row, col) {
   }
 
   const lineCount = rowsToClear.length + colsToClear.length;
+  sessionLinesInPlacement = lineCount;
 
   if (lineCount > 0) {
     // 构建消除格子集合（去重，排除海鲜格子）
@@ -1109,6 +1945,9 @@ function placeBlock(row, col) {
     } else {
       combo++;
     }
+    sessionMaxCombo = Math.max(sessionMaxCombo, combo);
+    stats.totalLinesCleared += lineCount;
+    saveStats();
     sfxClear(lineCount);
     spawnClearEffects(lineCount, combo, gameMode === 'freePlay' ? lineCount * 10 * combo : 0);
     
@@ -1162,6 +2001,7 @@ function placeBlock(row, col) {
       }
     }, lineCount > 0 ? 420 : 150);
   }
+  checkAchievements();
 
   return true;
 }
@@ -1186,31 +2026,51 @@ function checkGameOver() {
   showRescueOverlay();
 }
 
+/** 仅刷新游戏结束弹窗文字（i18n 切换用，不触发统计） */
+function updateGameOverTexts() {
+  const h2 = document.getElementById('gameOverTitle');
+  const p = document.getElementById('gameOverSubtitle');
+  if (gameMode === 'market') {
+    if (h2) h2.innerHTML = `<span data-i18n="Shift Over!">${t('Shift Over!')}</span>`;
+    if (p) p.innerHTML = `<span data-i18n="Shells earned">${t('Shells earned')}</span>`;
+  } else {
+    if (h2) h2.innerHTML = `<span data-i18n="Game Over">${t('Game Over')}</span>`;
+    if (p) p.innerHTML = `<span data-i18n="Final Score">${t('Final Score')}</span>`;
+  }
+}
+
 function showGameOver(showRestart = true) {
+  // Count game played (only once per game)
+  if (!gameEnded) {
+    gameEnded = true;
+    stats.totalGamesPlayed++;
+    saveStats();
+    // Final score/order achievement check
+    checkAchievements();
+  }
   document.getElementById('rescueOverlay').classList.add('hidden');
   document.getElementById('btnRestart').style.display = showRestart ? '' : 'none';
-  const overlayCard = document.querySelector('#overlay .overlay-card');
-  const h2 = overlayCard.querySelector('h2');
-  const p = overlayCard.querySelector('p');
+  const h2 = document.getElementById('gameOverTitle');
+  const p = document.getElementById('gameOverSubtitle');
   if (gameMode === 'market') {
-    h2.textContent = 'Shift Over!';
-    p.textContent = 'Shells earned';
+    if (h2) h2.innerHTML = `<span data-i18n="Shift Over!">${t('Shift Over!')}</span>`;
+    if (p) p.innerHTML = `<span data-i18n="Shells earned">${t('Shells earned')}</span>`;
     document.getElementById('finalScore').textContent = `🐚 ${sessionShells}`;
     const newBestEl = document.getElementById('newBest');
     if (sessionShells > bestSessionShells && sessionShells > 0) {
       bestSessionShells = sessionShells;
       localStorage.setItem('blockPuzzleBestShells', bestSessionShells);
-      newBestEl.textContent = 'New Best! 🏆';
+      newBestEl.innerHTML = `🏆 <span data-i18n="New Best!">${t('New Best!')}</span>`;
       newBestEl.classList.remove('hidden');
     } else if (bestSessionShells > 0) {
-      newBestEl.textContent = `Best: 🐚 ${bestSessionShells}`;
+      newBestEl.textContent = `${t('Best')}: 🐚 ${bestSessionShells}`;
       newBestEl.classList.remove('hidden');
     } else {
       newBestEl.classList.add('hidden');
     }
   } else {
-    h2.textContent = 'Game Over';
-    p.textContent = 'Final Score';
+    if (h2) h2.innerHTML = `<span data-i18n="Game Over">${t('Game Over')}</span>`;
+    if (p) p.innerHTML = `<span data-i18n="Final Score">${t('Final Score')}</span>`;
     document.getElementById('finalScore').textContent = score;
     const newBestEl = document.getElementById('newBest');
     // 从未保存过的最高分（localStorage 可能为空）
@@ -1218,10 +2078,10 @@ function showGameOver(showRestart = true) {
     if (score > storedBest && score > 0) {
       bestScore = score;
       localStorage.setItem('blockPuzzleBest', bestScore);
-      newBestEl.textContent = '🎉 New Record!';
+      newBestEl.innerHTML = `🎉 <span data-i18n="New Record!">${t('New Record!')}</span>`;
       newBestEl.classList.remove('hidden');
     } else if (storedBest > 0) {
-      newBestEl.textContent = `Best: ${storedBest}`;
+      newBestEl.textContent = `${t('Best')}: ${storedBest}`;
       newBestEl.classList.remove('hidden');
     } else {
       newBestEl.classList.add('hidden');
@@ -1236,6 +2096,15 @@ function showRescueOverlay() {
   gameOver = true;
   const ov = document.getElementById('rescueOverlay');
   ov.classList.remove('hidden');
+
+  // 🦀 彩蛋：中文模式 10% 概率显示舟山方言
+  const h2 = ov.querySelector('h2 span');
+  if (h2 && currentLang === 'zh' && Math.random() < 0.05) {
+    h2.textContent = '死蟹一只！';
+    window._markEasterEgg('dead_crab');
+  } else if (h2) {
+    h2.textContent = t('No moves left!');
+  }
 
   // Bomb 救援
   const bombCost = 50;
@@ -1286,6 +2155,28 @@ function showRescueOverlay() {
   } else {
     undoCostEl.textContent = `🐚${undoCost}`;
     undoBtn.classList.add('disabled');
+  }
+
+  // No Fishing 救援（仅 Market Mode）
+  const fbCost = 90;
+  const hasFB = powerUps.fishingBan > 0;
+  const canBuyFB = shells >= fbCost;
+  const fbBtn = ov.querySelector('[data-action="fishingBan"]');
+  const fbCostEl = document.getElementById('rescueFishingBanCost');
+  if (gameMode === 'market') {
+    fbBtn.style.display = '';
+    if (hasFB) {
+      fbCostEl.textContent = `x${powerUps.fishingBan}`;
+      fbBtn.classList.remove('disabled');
+    } else if (canBuyFB) {
+      fbCostEl.textContent = `🐚${fbCost}`;
+      fbBtn.classList.remove('disabled');
+    } else {
+      fbCostEl.textContent = `🐚${fbCost}`;
+      fbBtn.classList.add('disabled');
+    }
+  } else {
+    fbBtn.style.display = 'none';
   }
 
   document.getElementById('rescueOverlay').onclick = (e) => {
@@ -1345,6 +2236,41 @@ function handleRescue(type) {
     }
     savePowerUps();
     undo();
+  } else if (type === 'fishingBan') {
+    if (powerUps.fishingBan > 0) {
+      powerUps.fishingBan--;
+    } else if (shells >= 90) {
+      shells -= 90;
+      marketSaveShells();
+      updateShellsUI();
+    } else {
+      gameOver = true;
+      return;
+    }
+    savePowerUps();
+    // 直接清除所有海鲜
+    const targets = [];
+    for (const piece of placedSeafoodPieces) {
+      for (let sr = 0; sr < piece.rows; sr++) {
+        for (let sc = 0; sc < piece.cols; sc++) {
+          const r = piece.originR + sr, c = piece.originC + sc;
+          if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+            const cell = seafoodGrid[r] && seafoodGrid[r][c];
+            if (cell && !cell.isGap) targets.push({ row: r, col: c });
+          }
+        }
+      }
+    }
+    for (const { row, col } of targets) {
+      grid[row][col] = 0;
+      seafoodGrid[row][col] = null;
+    }
+    placedSeafoodPieces = [];
+    stats.fishingBanUsed++;
+    saveStats();
+    checkAchievements();
+    updatePowerUpUI();
+    render();
   }
   updatePowerUpUI();
 }
@@ -1907,10 +2833,52 @@ function createDragImage(block) {
 }
 
 // ===== UI 更新 =====
+/** 刷新手机顶部栏（仅在 mobile 布局有效） */
+function updateMobileHeader() {
+  const isMarket = gameMode === 'market';
+  // Shells（市场模式显示）
+  const mhShells = document.getElementById('mhShells');
+  if (mhShells) mhShells.style.display = isMarket ? '' : 'none';
+  if (mhShells && isMarket) mhShells.textContent = `🐚 ${shells}`;
+  // 顾客信息（市场模式）
+  const mhCust = document.getElementById('mhCustomer');
+  if (mhCust) {
+    const showCust = isMarket && activeCustomer && !gameOver;
+    mhCust.style.display = showCust ? 'flex' : 'none';
+    if (showCust) {
+      const iconEl = document.getElementById('mhCustIcon');
+      const hintEl = document.getElementById('mhCustHint');
+      if (iconEl && activeCustomer) {
+        const img = activeCustomer.skinImg && activeCustomer.skinImg.complete && activeCustomer.skinImg.naturalWidth
+          ? activeCustomer.skinImg : null;
+        if (img) {
+          iconEl.innerHTML = '';
+          const im = document.createElement('img');
+          im.src = img.src;
+          im.style.width = '100%'; im.style.height = '100%';
+          im.style.objectFit = 'contain'; im.style.borderRadius = '50%';
+          iconEl.appendChild(im);
+        } else {
+          iconEl.textContent = activeCustomer.icon;
+        }
+      }
+      if (hintEl && activeCustomer) {
+        hintEl.textContent = t('Fill {w}×{h} area!', {w: activeCustomer.type.w, h: activeCustomer.type.h});
+      }
+    }
+  }
+  // Score（经典模式显示）
+  const mhScore = document.getElementById('mhScore');
+  const mhScoreVal = document.getElementById('mhScoreVal');
+  if (mhScore) mhScore.style.display = (!isMarket) ? '' : 'none';
+  if (mhScoreVal && !isMarket) mhScoreVal.textContent = score;
+}
+
 function updateScoreUI() {
   document.getElementById('score').textContent = score;
   document.getElementById('combo').textContent = combo > 0 ? `x${combo}` : '-';
   document.getElementById('shells').textContent = `🐚 ${shells}`;
+  updateMobileHeader();
 }
 
 function updateBlockCards() {
@@ -1932,44 +2900,44 @@ function showHelp() {
   if (gameMode === 'freePlay') {
     container.innerHTML = `
       <div class="help-section">
-        <h3>🎯 Goal</h3>
-        <p>Drag blocks from the tray to the 8×8 board. Fill a full row or column to clear it. Keep playing as long as there's room!</p>
+        <h3>${t('help.freeplay.goalTitle')}</h3>
+        <p>${t('help.freeplay.goal')}</p>
       </div>
       <div class="help-section">
-        <h3>🖱 Controls</h3>
-        <p><b>Mouse:</b> Click a piece to pick it up, move it over the board, click again to place.</p>
-        <p><b>Keyboard:</b> Use <b>1–3</b> to select pieces, <b>Arrow keys</b> to nudge on the board.</p>
+        <h3>${t('help.freeplay.controlsTitle')}</h3>
+        <p>${t('help.freeplay.controls1')}</p>
+        <p>${t('help.freeplay.controls2')}</p>
       </div>
       <div class="help-section">
-        <h3>💣 Power-ups</h3>
-        <p><b>Bomb</b> — destroys a 3×3 area.<br><b>Shuffle</b> — replaces all unplaced pieces.<br><b>Undo+</b> — reverses your last placement.</p>
+        <h3>${t('help.freeplay.powerupsTitle')}</h3>
+        <p>${t('help.freeplay.powerups')}</p>
       </div>
       <div class="help-section">
-        <h3>🏆 Scoring</h3>
-        <p>Each cell placed = <b>1 point</b>. Each row/column cleared = <b>bonus points</b>. Score as high as you can!</p>
+        <h3>${t('help.freeplay.scoringTitle')}</h3>
+        <p>${t('help.freeplay.scoring')}</p>
       </div>
     `;
   } else {
     container.innerHTML = `
       <div class="help-section">
-        <h3>🎯 Goal</h3>
-        <p>Serve customers by filling their <b>basket zone</b> — the highlighted area on the board. Match blocks into the basket to complete orders and earn <b>🐚 Shells</b>!</p>
+        <h3>${t('help.market.goalTitle')}</h3>
+        <p>${t('help.market.goal')}</p>
       </div>
       <div class="help-section">
-        <h3>📦 Basket Zone</h3>
-        <p>Watch for a colored rectangle on the board. Fill every cell inside it with blocks to serve the customer.</p>
+        <h3>${t('help.market.basketTitle')}</h3>
+        <p>${t('help.market.basket')}</p>
       </div>
       <div class="help-section">
-        <h3>🍣 Seafood Pieces</h3>
-        <p>Irregularly shaped seafood pieces appear on the board. They are <b>immune to row/column clears</b> — only disappear when included in a basket serve!</p>
+        <h3>${t('help.market.seafoodTitle')}</h3>
+        <p>${t('help.market.seafood')}</p>
       </div>
       <div class="help-section">
-        <h3>🐚 Earning Shells</h3>
-        <p>Each basket serve = <b>5 shells</b>. Each seafood cell in the basket = <b>+3 bonus shells</b>. Use shells to buy power-ups in the <b>Shop</b>.</p>
+        <h3>${t('help.market.earningTitle')}</h3>
+        <p>${t('help.market.earning')}</p>
       </div>
       <div class="help-section">
-        <h3>💡 Tips</h3>
-        <p>Aim to include seafood in your basket serves for maximum shells. Buy <b>Bomb</b> or <b>Shuffle</b> when you're stuck!</p>
+        <h3>${t('help.market.tipsTitle')}</h3>
+        <p>${t('help.market.tips')}</p>
       </div>
     `;
   }
@@ -2020,6 +2988,7 @@ function loadSkinState() {
   if (!ownedSkins.customer.includes('shoppers')) ownedSkins.customer.push('shoppers');
   if (!ownedSkins.theme.includes('dark')) ownedSkins.theme.push('dark');
   if (!ownedSkins.theme.includes('light')) ownedSkins.theme.push('light');
+  if (!ownedSkins.theme.includes('midnight')) ownedSkins.theme.push('midnight');
   // 确保 active 有效（防止数据错乱）
   if (!ownedSkins.board.includes(activeSkin.board)) activeSkin.board = 'classic_blue';
   if (!ownedSkins.piece.includes(activeSkin.piece)) activeSkin.piece = 'classic';
@@ -2032,14 +3001,16 @@ function saveSkinState() {
 }
 
 function updatePowerUpUI() {
-  document.getElementById('bombCount').textContent   = powerUps.bomb;
-  document.getElementById('shuffleCount').textContent = powerUps.shuffle;
-  document.getElementById('undoStepCount').textContent = powerUps.undoStep;
+  document.getElementById('bombCount').textContent      = powerUps.bomb;
+  document.getElementById('shuffleCount').textContent    = powerUps.shuffle;
+  document.getElementById('undoStepCount').textContent   = powerUps.undoStep;
+  document.getElementById('fishingBanCount').textContent = powerUps.fishingBan;
   const busy = gameOver || (clearingCells && clearingCells.length > 0);
-  const noUnplaced = blocks && blocks.every(b => b.placed);
-  document.getElementById('btnBomb').disabled      = powerUps.bomb <= 0 || busy;
-  document.getElementById('btnShuffle').disabled   = powerUps.shuffle <= 0 || busy;
-  document.getElementById('btnUndoStep').disabled  = powerUps.undoStep <= 0 || busy || !history;
+  const inMarket = gameMode === 'market';
+  document.getElementById('btnBomb').disabled         = powerUps.bomb <= 0 || busy;
+  document.getElementById('btnShuffle').disabled      = powerUps.shuffle <= 0 || busy;
+  document.getElementById('btnUndoStep').disabled     = powerUps.undoStep <= 0 || busy || !history;
+  document.getElementById('btnFishingBan').disabled   = powerUps.fishingBan <= 0 || busy || !inMarket;
   document.getElementById('btnBomb').classList.toggle('active', powerUpMode === 'bomb');
 }
 
@@ -2061,7 +3032,7 @@ function activateBomb() {
   selectedIdx = -1;
   updatePowerUpUI();
   updateBlockCards();
-  document.getElementById('powerupHint').textContent = '💣 Click the board to blast a 3×3 area';
+  document.getElementById('powerupHint').textContent = t('Click the board to blast a 3×3 area');
   document.getElementById('powerupHint').style.display = 'block';
 }
 
@@ -2083,6 +3054,9 @@ function useBomb(row, col) {
     powerUps.bomb--;
     savePowerUps();
   }
+  stats.bombUsed++;
+  saveStats();
+  checkAchievements();
   rescueMode = false;
   powerUpMode = null;
   history = null; // 爆破不可撤销
@@ -2100,6 +3074,9 @@ function activateShuffle() {
   if (powerUps.shuffle <= 0 || gameOver || (clearingCells && clearingCells.length > 0)) return;
   powerUps.shuffle--;
   savePowerUps();
+  stats.shuffleUsed++;
+  saveStats();
+  checkAchievements();
   deactivatePowerUp();
   history = null;
 
@@ -2127,14 +3104,77 @@ function activateShuffle() {
   checkGameOver();
 }
 
-/** Undo+：消耗一个道具撤销 */
+/** Undo：消耗一个道具撤销 */
 function activateUndoStep() {
   if (powerUps.undoStep <= 0 || !history || gameOver || (clearingCells && clearingCells.length > 0)) return;
   powerUps.undoStep--;
   savePowerUps();
+  stats.undoUsed++;
+  saveStats();
+  checkAchievements();
   deactivatePowerUp();
   undo();
   updatePowerUpUI();
+}
+
+/** 禁渔期：移除棋盘上所有海鲜棋子（Market Mode 专属） */
+function activateFishingBan() {
+  if (powerUps.fishingBan <= 0 || gameOver || gameMode !== 'market' || (clearingCells && clearingCells.length > 0)) return;
+
+  powerUps.fishingBan--;
+  stats.fishingBanUsed++;
+  savePowerUps();
+  saveStats();
+  updatePowerUpUI();
+  checkAchievements();
+
+  // 收集所有海鲜棋子占用的格子用于消除动画
+  const targets = [];
+  for (const piece of placedSeafoodPieces) {
+    for (let sr = 0; sr < piece.rows; sr++) {
+      for (let sc = 0; sc < piece.cols; sc++) {
+        const r = piece.originR + sr, c = piece.originC + sc;
+        if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+          const cell = seafoodGrid[r] && seafoodGrid[r][c];
+          if (cell && !cell.isGap) {
+            targets.push({ row: r, col: c });
+          }
+        }
+      }
+    }
+  }
+  if (targets.length === 0) { sfxInvalid(); return; }
+
+  // 清除
+  for (const { row, col } of targets) {
+    grid[row][col] = 0;
+    seafoodGrid[row][col] = null;
+  }
+  placedSeafoodPieces = [];
+
+  // 粒子特效：所有海鲜格子位置爆开
+  for (const { row, col } of targets) {
+    const cx = gx(col) + CELL_SIZE / 2;
+    const cy = gy(row) + CELL_SIZE / 2;
+    const count = 4 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 2 + Math.random() * 6;
+      const hue = [38, 200, 340, 120, 55][Math.floor(Math.random() * 5)]; // 多彩爆裂
+      clearingParticles.push({
+        x: cx, y: cy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 2,
+        life: 1,
+        size: 2.5 + Math.random() * 5,
+        hue,
+      });
+    }
+  }
+
+  sfxClear(Math.min(targets.length, 12));
+  updatePowerUpUI();
+  render();
 }
 
 /** 更新商店弹窗余额 */
@@ -2162,6 +3202,7 @@ function renderSkinShop(cat) {
 
   let html = '';
   for (const skin of list) {
+    if (!isSkinVisible(cat, skin.id)) continue;
     const owned = isSkinOwned(cat, skin.id);
     const active = activeSkin[cat] === skin.id;
     const canAfford = bal >= skin.price;
@@ -2193,9 +3234,11 @@ function renderSkinShop(cat) {
 
     let btnHtml = '';
     if (active) {
-      btnHtml = `<span class="skin-badge active-badge">★ Active</span>`;
+      btnHtml = `<span class="skin-badge active-badge">★ ${t('Active')}</span>`;
     } else if (owned) {
-      btnHtml = `<button class="btn btn-ghost skin-btn skin-equip-btn" data-cat="${cat}" data-id="${skin.id}">Equip</button>`;
+      btnHtml = `<button class="btn btn-ghost skin-btn skin-equip-btn" data-cat="${cat}" data-id="${skin.id}">${t('Equip')}</button>`;
+    } else if (skin.category === 'achievement') {
+      btnHtml = `<span class="skin-badge ach-lock-badge">${t('From Achievement')}</span>`;
     } else {
       const canBuy = skin.price > 0 && canAfford;
       btnHtml = `<button class="btn btn-buy skin-btn skin-buy-btn" data-cat="${cat}" data-id="${skin.id}" data-cost="${skin.price}" ${canBuy?'':'disabled'}>🐚${skin.price}</button>`;
@@ -2203,14 +3246,14 @@ function renderSkinShop(cat) {
 
     html += `<div class="${classes.join(' ')}">
       <div class="skin-thumb">${thumbHtml}</div>
-      <div class="skin-name">${skin.name}</div>
-      <div class="skin-desc">${skin.desc}</div>
+      <div class="skin-name">${t(skin.name)}</div>
+      <div class="skin-desc">${t(skin.desc)}</div>
       ${btnHtml}
     </div>`;
   }
 
   grid.innerHTML = html;
-  if (info) info.textContent = `🐚 Balance: ${bal}`;
+  if (info) info.textContent = t('Balance: {n}', {n: bal});
 }
 
 /** 绑定皮肤卡片事件（事件委托，绑定在 document 上确保可靠捕获） */
@@ -2299,6 +3342,51 @@ function nextCustomer() {
   // 放置篮区
   placeBasketZone();
   updateCustomerUI();
+}
+
+/** 服务完成后弹出顾客对话气泡。seafoodKeys 为篮区内海鲜 key 数组 */
+function showSpeechBubble(seafoodKeys) {
+  const side = document.getElementById('customerSide');
+  const icon = document.getElementById('custIcon');
+  if (!side || !icon) return;
+
+  // 从篮区海鲜中选一个种类，匹配专属台词；否则用 general
+  let pool = SPEECH_CATEGORY.general;
+  if (seafoodKeys && seafoodKeys.length) {
+    const cats = [...new Set(seafoodKeys.map(k => SEAFOOD_CATEGORY_MAP[k]).filter(Boolean))];
+    if (cats.length) {
+      const chosen = cats[Math.floor(Math.random() * cats.length)];
+      pool = SPEECH_CATEGORY[chosen] || SPEECH_CATEGORY.general;
+    }
+  }
+  const phrase = pool[Math.floor(Math.random() * pool.length)];
+  const translated = t(phrase); // i18n
+
+  // 主题 → 气泡配色（低饱和度，与背景保持对比）
+  const BUBBLE_THEME = {
+    dark:          { bg:'linear-gradient(135deg,#7c78ba,#5c57a0)', tri:'#5c57a0', sh:'rgba(108,99,155,0.35)' },
+    light:         { bg:'linear-gradient(135deg,#6e7886,#909aa8)', tri:'#6e7886', sh:'rgba(90,100,114,0.25)' },
+    forest:        { bg:'linear-gradient(135deg,#6aaf6e,#3d8a42)', tri:'#3d8a42', sh:'rgba(76,140,80,0.28)' },
+    midnight_gold: { bg:'linear-gradient(135deg,#c8aa52,#9e8230)', tri:'#9e8230', sh:'rgba(180,150,70,0.32)' },
+    candy:         { bg:'linear-gradient(135deg,#d0808a,#b85a68)', tri:'#b85a68', sh:'rgba(195,120,130,0.3)' },
+    ocean_depths:  { bg:'linear-gradient(135deg,#3aa8b8,#1a7888)', tri:'#1a7888', sh:'rgba(40,150,165,0.32)' },
+  };
+  const tc = BUBBLE_THEME[currentTheme] || BUBBLE_THEME.dark;
+
+  const bubble = document.createElement('div');
+  bubble.className = 'speech-bubble';
+  bubble.textContent = translated;
+  bubble.style.setProperty('--bubble-bg', tc.bg);
+  bubble.style.setProperty('--bubble-tri', tc.tri);
+  bubble.style.setProperty('--bubble-shadow', tc.sh);
+
+  // 定位在顾客头像上方
+  const iconRect = icon.getBoundingClientRect();
+  const sideRect = side.getBoundingClientRect();
+  bubble.style.top = (iconRect.top - sideRect.top - 22) + 'px';
+
+  side.appendChild(bubble);
+  setTimeout(() => bubble.remove(), 1600);
 }
 
 /** 在棋盘上放置篮区 */
@@ -2390,11 +3478,15 @@ function checkBasketServe() {
   if (filled >= total) {
     const { row, col, rows, cols } = basketZone;
 
-    // 统计篮区内海鲜格子数
+    // 统计篮区内海鲜格子数 + 收集海鲜类型
     let seafoodCount = 0;
+    const seafoodKeys = [];
     for (let r = row; r < row + rows; r++) {
       for (let c = col; c < col + cols; c++) {
-        if (seafoodGrid[r][c] && !seafoodGrid[r][c].isGap) seafoodCount++;
+        if (seafoodGrid[r][c] && !seafoodGrid[r][c].isGap) {
+          seafoodCount++;
+          seafoodKeys.push(seafoodGrid[r][c].key);
+        }
       }
     }
 
@@ -2409,6 +3501,9 @@ function checkBasketServe() {
 
     // 延迟到动画完成后实际清除
     pendingBasketClear = { row, col, rows, cols, seafoodCount, reward: 5 + seafoodCount * 3 };
+
+    // 动画开始立即弹出气泡（传入海鲜类型以匹配台词），此时当前顾客还在
+    showSpeechBubble(seafoodKeys);
 
     // 生成金色粒子（无得分飘字）
     spawnClearEffects(0, 0, 0);
@@ -2467,7 +3562,7 @@ function updateCustomerUI() {
 
   renderCustomerAvatar(document.getElementById('custIcon'), activeCustomer, true);
   document.getElementById('custBasketHint').textContent =
-    `Fill ${activeCustomer.type.w}×${activeCustomer.type.h} area!`;
+    t('Fill {w}×{h} area!', {w: activeCustomer.type.w, h: activeCustomer.type.h});
   updateCustomerProgressUI();
 
   // 更新队列
@@ -2481,6 +3576,7 @@ function updateCustomerUI() {
     }
     queueRow.appendChild(slot);
   }
+  updateMobileHeader();
 }
 
 function updateCustomerProgressUI() {
@@ -2523,12 +3619,36 @@ function setupEvents() {
   canvas.addEventListener('mouseleave', () => {
     hoverCell = null;
   });
+  // 🫧 气泡彩蛋：连点空格 5 下
+  let bubbleClicks = { row:-1, col:-1, count:0, timer:null };
+
   canvas.addEventListener('click', (e) => {
     if (gameOver || clearingCells.length > 0) return;
     initAudio();
 
     const cell = getGridCell(e);
     if (!cell) return;
+
+    // 🫧 气泡彩蛋：同一空格快速连点 5 下
+    if (!powerUpMode && grid[cell.row][cell.col] === 0) {
+      const key = cell.row + ',' + cell.col;
+      const lastKey = bubbleClicks.row + ',' + bubbleClicks.col;
+      if (key === lastKey) {
+        bubbleClicks.count++;
+        clearTimeout(bubbleClicks.timer);
+        bubbleClicks.timer = setTimeout(() => { bubbleClicks.count = 0; }, 1500);
+        if (bubbleClicks.count >= 5) {
+          bubbleClicks.count = 0;
+          window._triggerBubble(cell.row, cell.col);
+        }
+      } else {
+        bubbleClicks.row = cell.row;
+        bubbleClicks.col = cell.col;
+        bubbleClicks.count = 1;
+        clearTimeout(bubbleClicks.timer);
+        bubbleClicks.timer = setTimeout(() => { bubbleClicks.count = 0; }, 1500);
+      }
+    }
 
     // Bomb mode
     if (powerUpMode === 'bomb') {
@@ -2662,7 +3782,7 @@ function setupEvents() {
     customerQueue = [];
     activeCustomer = null;
     basketZone = null;
-    updateBestHints();
+    updateStartHint();
     updateScoreUI();
   });
 
@@ -2696,6 +3816,14 @@ function setupEvents() {
     document.getElementById('settingsOverlay').classList.remove('hidden');
   });
 
+  // ---- 成就按钮 (in-game) ----
+  document.getElementById('achBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    initAudio();
+    buildAchievementPanel();
+    document.getElementById('achievementOverlay').classList.remove('hidden');
+  });
+
   // ---- 帮助按钮 ----
   document.getElementById('helpBtn').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -2721,6 +3849,10 @@ function setupEvents() {
     initAudio();
     activateUndoStep();
   });
+  document.getElementById('btnFishingBan').addEventListener('click', () => {
+    initAudio();
+    activateFishingBan();
+  });
 
   // 主题切换
   // 音效开关
@@ -2734,15 +3866,52 @@ function setupEvents() {
   // 音量滑块
   const volSlider = document.getElementById('volumeSlider');
   volSlider.value = Math.round(bgmVolume * 100);
+  let volLast = parseInt(volSlider.value), volLastDir = 0, volCrosses = 0, volCrossTimer = null;
   volSlider.addEventListener('input', () => {
     bgmVolume = volSlider.value / 100;
     localStorage.setItem('blockPuzzleVolume', bgmVolume.toString());
     if (bgm) bgm.volume = bgmVolume;
     if (!isMuted && bgm && bgm.paused) playBgm();
+
+    // 🎚️ DJ搓碟彩蛋：来回跨越 50% 中点 6 次（3 趟），3 秒内
+    const v = parseInt(volSlider.value);
+    if (v !== volLast) {
+      if ((volLast < 50 && v >= 50) || (volLast > 50 && v <= 50)) {
+        volCrosses++;
+        clearTimeout(volCrossTimer);
+        volCrossTimer = setTimeout(() => { volCrosses = 0; }, 3000);
+        if (volCrosses >= 6) {
+          volCrosses = 0;
+          window._markEasterEgg('dj_scratch');
+          window._showScratchToast();
+        }
+      }
+    }
+    volLast = v;
   });
 
   // 应用保存的主题 & 加载道具
   applyTheme(currentTheme);
+
+  // ===== 午夜彩蛋：0:00-5:00 自动切换午夜渔火主题 =====
+  (function checkMidnight() {
+    const hour = new Date().getHours();
+    const subEl = document.querySelector('.start-content .subtitle span');
+    if (hour >= 0 && hour < 5) {
+      if (currentTheme !== 'midnight') {
+        window._markEasterEgg('midnight');
+        window._midnightPrevTheme = currentTheme;
+        equipSkin('theme', 'midnight');
+      }
+      if (subEl) subEl.textContent = t('midnight.subtitle');
+    } else {
+      if (currentTheme === 'midnight') {
+        const prev = window._midnightPrevTheme || 'dark';
+        if (prev !== 'midnight') equipSkin('theme', prev);
+      }
+      if (subEl) subEl.textContent = t('Seafood Market');
+    }
+  })();
   loadPowerUps();
   updatePowerUpUI();
   
@@ -2798,12 +3967,18 @@ function gameLoop() {
         marketSaveShells();
         updateScoreUI();
         nextCustomer();
+        // Achievement tracking
+        sessionOrders++;
+        stats.totalOrdersCompleted++;
+        stats.totalSeafoodCleared += bc.total;
+        saveStats();
+        checkAchievements();
         pendingBasketClear = null;
         clearingCells = [];
       } else {
         // 行/列消除：海鲜格子保留不动
         for (const { row, col } of clearingCells) {
-          if (!seafoodGrid[row][col]) {
+          if (!seafoodGrid[row][col] || seafoodGrid[row][col].isGap) {
             grid[row][col] = 0;
           }
         }

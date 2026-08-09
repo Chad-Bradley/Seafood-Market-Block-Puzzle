@@ -37,7 +37,7 @@ A cozy hybrid of **block puzzle** and **market sim**. Place polyomino pieces on 
 |------|--------|------|
 | 💣 Bomb | Destroy a 3×3 area on the board | 50 🐚 |
 | 🔀 Shuffle | Replace all unplaced pieces | 50 🐚 |
-| ↩️ Undo+ | Reverse your last placement | 50 🐚 |
+| ↩️ Undo | Reverse your last placement | 50 🐚 |
 
 ---
 

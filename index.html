@@ -134,7 +134,6 @@
     display: block;
     border-radius: 12px;
     box-shadow: var(--canvas-shadow);
-    cursor: url('assets/icon/cursor.png') 4 4, crosshair;
   }
 
   /* ===== 右侧：信息面板 ===== */
@@ -299,6 +298,7 @@
   #settingsOverlay,
   #shopOverlay,
   #helpOverlay,
+  #achievementOverlay,
   #confirmBackOverlay,
   #confirmNewGameOverlay {
     z-index: 250;
@@ -346,6 +346,7 @@
     gap: 10px;
     align-self: flex-start;
     margin-top: 68px;
+    position: relative;
   }
   .customer-active {
     display: flex;
@@ -374,6 +375,43 @@
     flex-direction: column;
     gap: 6px;
     align-items: center;
+  }
+
+  /* 顾客对话气泡 */
+  .speech-bubble {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bubble-bg, linear-gradient(135deg, #6c63ff, #4834d4));
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 100;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    box-shadow: 0 4px 16px var(--bubble-shadow, rgba(108,99,255,0.45));
+    animation: speechFloat 1.5s ease-out forwards;
+    font-family: inherit;
+  }
+  .speech-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid var(--bubble-tri, #4834d4);
+  }
+  @keyframes speechFloat {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.7); }
+    15%  { opacity: 1; transform: translateX(-50%) translateY(0)   scale(1); }
+    70%  { opacity: 1; transform: translateX(-50%) translateY(-28px) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-42px) scale(0.9); }
   }
   .queue-slot {
     width:52px; height:52px; background:var(--bg-card); border:1px solid var(--border);
@@ -477,6 +515,16 @@
     from { transform: translateY(30px); opacity: 0; }
     to   { transform: translateY(0);   opacity: 1; }
   }
+
+  .title-img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    animation: titleFloat 4s ease-in-out infinite;
+    cursor: pointer;
+  }
+  .start-content .title-img { max-width: 380px; margin: 0 auto 4px auto; }
+  .panel .title-img { max-width: 220px; }
 
   .start-content .logo-icon {
     width: 128px;
@@ -936,13 +984,306 @@
   .skin-card .skin-btn { font-size:11px; padding:5px 16px; width:100%; margin-top:auto; }
   .skin-badge { font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(76,175,80,0.2); color:#4caf50; font-weight:700; }
   .skin-badge.active-badge { background:rgba(255,215,0,0.2); color:var(--score-gold); }
+  .skin-badge.ach-lock-badge { background:rgba(150,120,220,0.18); color:#b8a0e0; cursor:default; }
   .skin-select {
     padding:6px 10px; border-radius:8px; border:1.5px solid var(--border);
     background:var(--surface); color:var(--text); font-size:13px;
     outline:none; cursor:pointer; min-width:140px;
   }
   .skin-select:focus { border-color:var(--border-focus); }
+
+  /* --- 成就面板 --- */
+  .ach-item {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 14px; border-radius:10px;
+    border:1.5px solid var(--border); background:var(--card-bg);
+    transition:all .2s;
+  }
+  .ach-item.unlocked { border-color:rgba(255,215,0,0.4); background:rgba(255,215,0,0.06); }
+  .ach-item.locked { opacity:0.65; }
+  .ach-icon { font-size:24px; min-width:36px; text-align:center; }
+  .ach-info { flex:1; min-width:0; }
+  .ach-name { font-size:14px; font-weight:700; margin-bottom:2px; }
+  .ach-desc { font-size:11px; color:var(--text-dim); }
+  .ach-reward { font-size:12px; font-weight:700; color:var(--score-gold); white-space:nowrap; }
+  .ach-item.locked .ach-reward { color:var(--text-dim); }
+  /* ---- Achievement Progress Bar ---- */
+  .ach-progress { margin-top:6px; }
+  .ach-progress-bar { width:100%; height:5px; background:var(--border); border-radius:3px; overflow:hidden; }
+  .ach-progress-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,var(--score-gold),#ffb347); transition:width .4s ease; }
+  .ach-progress-fill.ach-progress-done { background:linear-gradient(90deg,#4ade80,#22c55e); }
+  .ach-progress-text { font-size:10px; color:var(--text-dim); margin-top:3px; }
+  .ach-progress-text.completed { color:#4ade80; }
+
+  /* --- 成就 Toast 通知 --- */
+  .ach-toast {
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:12px;
+    background:var(--card-bg); border:2px solid var(--score-gold);
+    border-radius:14px; padding:14px 20px;
+    z-index:10000; min-width:300px; max-width:420px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.4), 0 0 20px rgba(255,215,0,0.15);
+    transition:opacity .4s, transform .4s;
+  }
+  .ach-toast.hidden { display:none; }
+  .ach-toast.ach-toast-in { opacity:1; transform:translateX(-50%) translateY(0); animation:achSlideIn .4s ease-out; }
+  .ach-toast.ach-toast-out { opacity:0; transform:translateX(-50%) translateY(20px); }
+  @keyframes achSlideIn {
+    from { opacity:0; transform:translateX(-50%) translateY(30px); }
+    to { opacity:1; transform:translateX(-50%) translateY(0); }
+  }
+  .ach-toast-icon { font-size:36px; }
+  .ach-toast-body { flex:1; }
+  .ach-toast-title { font-size:11px; color:var(--score-gold); font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:2px; }
+  .ach-toast-name { font-size:16px; font-weight:700; }
+  .ach-toast-desc { font-size:12px; color:var(--text-dim); }
+  .ach-toast-reward { font-size:13px; font-weight:700; color:#4ECDC4; margin-top:2px; }
+
+  /* --- 成就按钮 --- */
+  .btn-ach {
+    display:block; width:100%; padding:12px 28px; border-radius:32px;
+    border:2px solid var(--score-gold);
+    background:rgba(255,215,0,0.08); color:var(--score-gold);
+    font-size:15px; font-weight:700; cursor:pointer;
+    transition:all .2s; text-align:center; margin:8px auto 0;
+  }
+  .btn-ach:hover { background:rgba(255,215,0,0.18); transform:scale(1.03); }
 </style>
+<style>
+  /* ===== 手机布局 ===== */
+  body.layout-mobile .game-wrapper {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 4px;
+    max-width: 380px;
+    margin: 0 auto;
+  }
+  /* 顾客面板：单行紧凑 */
+  body.layout-mobile .customer-side {
+    width: 100%;
+    flex-direction: row;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 0;
+    order: -1;
+  }
+  body.layout-mobile .customer-side .score-card {
+    flex: 1;
+    max-width: 180px;
+    padding: 6px 10px;
+  }
+  body.layout-mobile .customer-side .queue-label,
+  body.layout-mobile .customer-side .queue-row { display: none; }
+  body.layout-mobile .cust-icon { font-size: 24px; width: 36px; height: 36px; }
+  /* 棋盘缩小 */
+  body.layout-mobile .board-section {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  body.layout-mobile .board-section > canvas {
+    order: -1;
+    max-width: 340px;
+    height: auto !important;
+    border-radius: 10px;
+  }
+  body.layout-mobile .settings-btn,
+  body.layout-mobile .settings-btn + .settings-btn,
+  body.layout-mobile .settings-btn + .settings-btn + .settings-btn {
+    position: static;
+    display: inline-flex;
+    margin: 2px;
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+  /* 面板紧凑 */
+  body.layout-mobile .panel {
+    width: 100%;
+    max-width: 380px;
+    gap: 8px;
+  }
+  body.layout-mobile .panel h1 { display: none; }
+  body.layout-mobile .panel .title-img { display: none; }
+  /* 分数横排 */
+  body.layout-mobile .score-card {
+    padding: 6px 10px;
+    gap: 2px;
+  }
+  body.layout-mobile .score-row { flex-direction: row; gap: 8px; }
+  body.layout-mobile .score-label { font-size: 11px; }
+  body.layout-mobile .score-value { font-size: 17px; }
+  /* 方块 + 道具紧凑 */
+  body.layout-mobile .blocks-label { font-size: 11px; margin-bottom: -4px; }
+  body.layout-mobile .blocks-row { gap: 6px; }
+  body.layout-mobile .block-card { border-radius: 8px; }
+  body.layout-mobile .powerup-row { gap: 4px; }
+  body.layout-mobile .powerup-btn { padding: 6px 1px; gap: 1px; border-radius: 8px; }
+  body.layout-mobile .pu-icon { font-size: 16px; }
+  body.layout-mobile .pu-label { font-size: 8px; }
+  body.layout-mobile .pu-count { font-size: 10px; padding: 1px 6px; }
+  /* 按钮 */
+  body.layout-mobile .btn { padding: 10px; font-size: 13px; }
+  body.layout-mobile .btn-ghost { padding: 8px; font-size: 11px; }
+  body.layout-mobile .hint { font-size: 10px; display: none; }
+  /* 弹窗 */
+  body.layout-mobile .overlay-card { padding: 20px 16px; }
+  body.layout-mobile .overlay-card h2 { font-size: 20px; }
+  body.layout-mobile .overlay-card .final-score { font-size: 32px; }
+  body.layout-mobile .modal-card { padding: 16px 14px; max-width: 300px !important; }
+  body.layout-mobile .shop-modal { max-width: 340px !important; }
+  body.layout-mobile .skin-card { width: 90px; padding: 6px 4px 8px; }
+  body.layout-mobile .skin-thumb { width: 48px; height: 48px; }
+  body.layout-mobile .skin-name { font-size: 11px; }
+  body.layout-mobile .skin-desc { display: none; }
+  /* 弹窗占满手机屏幕 */
+  body.layout-mobile .modal-card {
+    max-width: 100% !important;
+    width: calc(100vw - 24px);
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 14px;
+    padding: 20px 16px;
+  }
+  body.layout-mobile .shop-modal { max-width: 100% !important; }
+  body.layout-mobile .overlay-card {
+    max-width: calc(100vw - 40px);
+    padding: 24px 20px;
+  }
+  /* 开始页 */
+  body.layout-mobile .start-content { padding: 28px 16px; }
+  body.layout-mobile .start-content h1 .title-img { max-width: 260px; }
+  body.layout-mobile .start-content .subtitle { font-size: 11px; margin-bottom: 20px; }
+  body.layout-mobile .btn-start { font-size: 14px; padding: 10px 24px; letter-spacing: 1px; }
+  body.layout-mobile .start-buttons { gap: 8px; margin-bottom: 16px; }
+  /* 成就弹窗 */
+  body.layout-mobile .ach-item { padding: 8px 10px; gap: 8px; }
+  body.layout-mobile .ach-icon { font-size: 20px; min-width: 28px; }
+  body.layout-mobile .ach-name { font-size: 12px; }
+  body.layout-mobile .ach-desc { font-size: 10px; }
+  /* 手机顶部栏 */
+  body.layout-mobile .mobile-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 380px;
+    padding: 4px 8px;
+    gap: 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .mobile-header { display: none; }
+  body.layout-mobile .mh-left {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+  }
+  body.layout-mobile .mh-cust-icon { font-size: 20px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  body.layout-mobile .mh-cust-icon img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
+  body.layout-mobile .mh-cust-hint { font-size: 10px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.layout-mobile .mh-score { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+  body.layout-mobile .mh-score strong { color: var(--score-gold); }
+  body.layout-mobile .mh-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  body.layout-mobile .mh-shells { font-size: 13px; color: #4ECDC4; font-weight: 700; white-space: nowrap; }
+  body.layout-mobile .mh-btn {
+    width: 30px; height: 30px; border-radius: 8px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; transition: all .2s;
+  }
+  body.layout-mobile .mh-btn:hover { color: var(--text); border-color: var(--border-focus); }
+  /* 手机菜单弹出 */
+  body.layout-mobile .mh-menu {
+    position: absolute;
+    top: 42px; left: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 50;
+    box-shadow: 0 8px 24px var(--shadow);
+    min-width: 140px;
+  }
+  .mh-menu { display: none !important; }
+  body.layout-mobile .mh-menu.show { display: flex !important; }
+  body.layout-mobile .mh-menu-item {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: background .15s;
+  }
+  body.layout-mobile .mh-menu-item:hover { background: var(--bg-card-hover); }
+  /* 隐藏原位置元素 */
+  body.layout-mobile #btnNewGame,
+  body.layout-mobile #btnBackHome { display: none !important; }
+  body.layout-mobile #scoreRow { display: none !important; }
+  body.layout-mobile .customer-side { display: none !important; }
+  body.layout-mobile .board-section .settings-btn { display: none !important; }
+  body.layout-mobile #shellsRow { display: none !important; }
+  body.layout-mobile .panel h1 { display: none; }
+  body.layout-mobile .panel .title-img { display: none; }
+</style>
+
+<style>
+@keyframes eeFade {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes seafoodRain {
+  0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; }
+  30% { opacity: 1; }
+  100% { transform: translateY(105vh) translateX(var(--drift, 30px)) rotate(var(--rotate, 360deg)); opacity: 0; }
+}
+.seafood-rain {
+  position: fixed;
+  z-index: 9998;
+  pointer-events: none;
+  animation: seafoodRain linear forwards;
+}
+@keyframes bubbleFloat {
+  0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 1; }
+  30%  { transform: translate(-50%,-50%) scale(1.2); opacity: 0.8; }
+  60%  { transform: translate(-50%,-100%) scale(1.0); opacity: 0.4; }
+  100% { transform: translate(-50%,-200%) scale(0.6); opacity: 0; }
+}
+.bubble-pop {
+  position: fixed;
+  z-index: 9997;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(200,230,255,0.7), rgba(100,180,240,0.2) 60%, rgba(80,160,220,0.1) 100%);
+  border: 1px solid rgba(180,220,255,0.5);
+  box-shadow: 0 0 6px rgba(150,210,255,0.25), inset 0 0 4px rgba(255,255,255,0.15);
+  animation: bubbleFloat 1s ease-out forwards;
+}
+</style>
+
 <style id="themeVars"></style>
 </head>
 <body>
@@ -950,18 +1291,18 @@
 <!-- 模式选择弹窗 -->
 <div class="overlay hidden" id="modeSelectOverlay">
   <div class="overlay-card" style="padding: 40px 48px; max-width: 480px;">
-    <h2 style="font-size:22px; color:var(--text); margin-bottom:6px;">Choose Mode</h2>
-    <p style="color:var(--text-dim); font-size:13px; margin-bottom:24px;">Select a game mode to begin</p>
+    <h2 style="font-size:22px; color:var(--text); margin-bottom:6px;"><span data-i18n="Choose Mode">Choose Mode</span></h2>
+    <p style="color:var(--text-dim); font-size:13px; margin-bottom:24px;"><span data-i18n="Select a game mode to begin">Select a game mode to begin</span></p>
     <div style="display:flex; gap:14px;">
       <button class="btn mode-card" id="btnMarketMode">
         <span class="mode-icon">🦐</span>
-        <span class="mode-title">Market Mode</span>
-        <span class="mode-desc">Seafood market sim.<br>Serve customers, earn shells!</span>
+        <span class="mode-title"><span data-i18n="Market Mode">Market Mode</span></span>
+        <span class="mode-desc" data-i18n-html="mode.market.desc">Seafood market sim.<br>Serve customers, earn shells!</span>
       </button>
       <button class="btn mode-card" id="btnFreePlay">
         <span class="mode-icon">🧊</span>
-        <span class="mode-title">Classic Mode</span>
-        <span class="mode-desc">Classic block puzzle.<br>Chase your high score!</span>
+        <span class="mode-title"><span data-i18n="Classic Mode">Classic Mode</span></span>
+        <span class="mode-desc" data-i18n-html="mode.classic.desc">Classic block puzzle.<br>Chase your high score!</span>
       </button>
     </div>
   </div>
@@ -973,16 +1314,19 @@
   <div class="bg-blocks" id="startBgBlocks"></div>
   <div class="start-content">
     <img class="logo-icon" src="assets/icon/icon.png" alt="Tile & Tide">
-    <h1>TILE &amp; TIDE</h1>
-    <div class="panel-mode" id="startOverlayTitle" style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">Free Play</div>
-    <p class="subtitle">Seafood Market</p>
+    <h1><img class="title-img" src="assets/title_en.png" alt="Tile & Tide"></h1>
+    <p class="subtitle"><span data-i18n="Seafood Market">Seafood Market</span></p>
     <p class="best-hint" id="startBestHint"></p>
     <div class="start-buttons">
-      <button class="btn-start btn-play" id="btnPlay">▶ &nbsp;PLAY</button>
-      <button class="btn-start btn-shop" id="btnShopStart">🛒 &nbsp;SHOP</button>
-      <button class="btn-start btn-settings" id="btnSettingsStart">⚙ &nbsp;SETTINGS</button>
+      <button class="btn-start btn-play" id="btnPlay">▶ &nbsp;<span data-i18n="PLAY">PLAY</span></button>
+      <button class="btn-start btn-shop" id="btnShopStart">🛒 &nbsp;<span data-i18n="SHOP">SHOP</span></button>
+      <button class="btn-start btn-settings" id="btnSettingsStart">⚙ &nbsp;<span data-i18n="SETTINGS">SETTINGS</span></button>
+      <button class="btn-start btn-ach" id="btnAchievementsStart">🏆 &nbsp;<span data-i18n="ACHIEVEMENTS">ACHIEVEMENTS</span></button>
     </div>
-    <p class="credits">Drag or click pieces onto the board</p>
+    <p class="credits" style="display:flex;flex-direction:column;gap:4px;">
+      <span data-i18n="Drag or click pieces onto the board">Drag or click pieces onto the board</span>
+      <span style="opacity:0.6;font-size:10px;" data-i18n="Made by Chad Bradley">Made by Chad Bradley</span>
+    </p>
   </div>
 </div>
 
@@ -990,6 +1334,29 @@
 <div class="bg-blocks" id="bgBlocks"></div>
 
 <div class="game-wrapper">
+
+  <!-- 手机布局顶部栏 -->
+  <div class="mobile-header" id="mobileHeader">
+    <div class="mh-left">
+      <button class="mh-btn" id="mhMenuBtn">↩</button>
+      <div id="mhCustomer" style="display:none;">
+        <span class="mh-cust-icon" id="mhCustIcon">🦀</span>
+        <span class="mh-cust-hint" id="mhCustHint">Fill area!</span>
+      </div>
+      <span class="mh-score" id="mhScore" style="display:none;"><span data-i18n="Score">Score</span>: <strong id="mhScoreVal">0</strong></span>
+    </div>
+    <div class="mh-right">
+      <span class="mh-shells" id="mhShells">🐚 0</span>
+      <button class="mh-btn" id="mhSettingsBtn">⚙</button>
+      <button class="mh-btn" id="mhHelpBtn">ℹ</button>
+      <button class="mh-btn" id="mhAchBtn">🏆</button>
+    </div>
+    <div class="mh-menu hidden" id="mhMenu">
+      <button class="mh-menu-item" id="mhNewGame"><span data-i18n="New Game">New Game</span></button>
+      <button class="mh-menu-item" id="mhBackHome">🏠 <span data-i18n="Back to Home">Back to Home</span></button>
+    </div>
+  </div>
+
   <!-- 左：顾客区域（Market Mode 专属） -->
   <div class="customer-side" id="customerSide" style="display:none;">
     <div class="score-card" style="padding:14px 16px;">
@@ -1001,7 +1368,7 @@
         </div>
       </div>
     </div>
-    <div class="queue-label">Next</div>
+    <div class="queue-label"><span data-i18n="Next">Next</span></div>
     <div class="queue-row" id="queueRow">
       <div class="queue-slot"><span>🦐</span></div>
       <div class="queue-slot"><span>🐟</span></div>
@@ -1013,33 +1380,34 @@
   <div class="board-section">
     <button class="settings-btn" id="settingsBtn" title="Settings">⚙</button>
     <button class="settings-btn" id="helpBtn" title="How to Play" style="top:48px;">ℹ</button>
+    <button class="settings-btn" id="achBtn" title="Achievements" style="top:84px;">🏆</button>
     <canvas id="gameCanvas"></canvas>
   </div>
 
   <!-- 右：面板 -->
   <div class="panel">
-    <h1>TILE &amp; TIDE</h1>
+    <h1><img class="title-img" src="assets/title_en.png" alt="Tile & Tide"></h1>
 
     <div class="score-card">
       <div class="score-row" id="scoreRow">
-        <span class="score-label">Score</span>
+        <span class="score-label"><span data-i18n="Score">Score</span></span>
         <span class="score-value" id="score">0</span>
       </div>
       <div class="score-row" id="comboRow">
-        <span class="score-label">Combo</span>
+        <span class="score-label"><span data-i18n="Combo">Combo</span></span>
         <span class="score-value combo" id="combo">-</span>
       </div>
       <div class="score-row" id="bestRow">
-        <span class="score-label">Best</span>
+        <span class="score-label"><span data-i18n="Best">Best</span></span>
         <span class="score-value best" id="best">0</span>
       </div>
       <div class="score-row" id="shellsRow" style="display:none;">
-        <span class="score-label">Shells</span>
+        <span class="score-label"><span data-i18n="Shells">Shells</span></span>
         <span class="score-value" id="shells" style="color:#4ECDC4;">🐚 0</span>
       </div>
     </div>
 
-    <div class="blocks-label">Select a piece</div>
+    <div class="blocks-label"><span data-i18n="Select a piece">Select a piece</span></div>
     <div class="blocks-row" id="blocksRow">
       <div class="block-card" data-idx="0" draggable="true"><canvas></canvas></div>
       <div class="block-card" data-idx="1" draggable="true"><canvas></canvas></div>
@@ -1047,28 +1415,35 @@
     </div>
 
     <!-- 道具区域 -->
-    <div class="blocks-label" style="margin-top:10px;">Power-ups</div>
+    <div class="blocks-label" style="margin-top:10px;"><span data-i18n="Power-ups">Power-ups</span></div>
     <div class="powerup-row" id="powerupRow">
-      <button class="powerup-btn" id="btnBomb" title="Blast a 3x3 area on the board">
-        <span class="pu-icon">💣</span><span class="pu-label">Bomb</span>
+      <button class="powerup-btn" id="btnBomb" data-i18n-title="Blast a 3×3 area on the board" title="Blast a 3x3 area on the board">
+        <span class="pu-icon">💣</span><span class="pu-label"><span data-i18n="Bomb">Bomb</span></span>
         <span class="pu-count" id="bombCount">3</span>
       </button>
-      <button class="powerup-btn" id="btnShuffle" title="Reshuffle all unplaced pieces">
-        <span class="pu-icon">🔀</span><span class="pu-label">Shuffle</span>
+      <button class="powerup-btn" id="btnShuffle" data-i18n-title="Reshuffle all unplaced pieces" title="Reshuffle all unplaced pieces">
+        <span class="pu-icon">🔀</span><span class="pu-label"><span data-i18n="Shuffle">Shuffle</span></span>
         <span class="pu-count" id="shuffleCount">3</span>
       </button>
-      <button class="powerup-btn" id="btnUndoStep" title="Extra undo step">
-        <span class="pu-icon">↩️</span><span class="pu-label">Undo+</span>
+      <button class="powerup-btn" id="btnUndoStep" data-i18n-title="Undo" title="Undo">
+        <span class="pu-icon">↩️</span><span class="pu-label"><span data-i18n="Undo">Undo</span></span>
         <span class="pu-count" id="undoStepCount">3</span>
+      </button>
+      <button class="powerup-btn" id="btnFishingBan" data-i18n-title="Remove all seafood from the board (Market only)" title="Remove all seafood from the board (Market only)">
+        <span class="pu-icon">🚫</span><span class="pu-label"><span data-i18n="No Fishing">No Fishing</span></span>
+        <span class="pu-count" id="fishingBanCount">1</span>
       </button>
     </div>
     <p class="hint" id="powerupHint" style="display:none; color:#f59e0b; margin-top:4px;"></p>
 
-    <button class="btn btn-primary" id="btnNewGame">New Game</button>
-    <button class="btn btn-ghost" id="btnBackHome">🏠 Back to Home</button>
+    <button class="btn btn-primary" id="btnNewGame"><span data-i18n="New Game">New Game</span></button>
+    <button class="btn btn-ghost" id="btnBackHome">🏠 <span data-i18n="Back to Home">Back to Home</span></button>
     <p class="hint">
-      Click to select &nbsp;·&nbsp; Hover to preview &nbsp;·&nbsp; Click board to place<br>
-      ESC to deselect &nbsp;·&nbsp; Fill a row or column to clear
+      <span data-i18n="Click to select">Click to select</span> &nbsp;·&nbsp;
+      <span data-i18n="Hover to preview">Hover to preview</span> &nbsp;·&nbsp;
+      <span data-i18n="Click board to place">Click board to place</span><br>
+      <span data-i18n="ESC to deselect">ESC to deselect</span> &nbsp;·&nbsp;
+      <span data-i18n="Fill a row or column to clear">Fill a row or column to clear</span>
     </p>
   </div>
 </div>
@@ -1076,42 +1451,45 @@
 <!-- 游戏结束遮罩 -->
 <div class="overlay hidden" id="overlay">
   <div class="overlay-card">
-    <h2>Game Over</h2>
-    <p style="color:#aaa;font-size:14px;">Final Score</p>
+    <h2 id="gameOverTitle"><span data-i18n="Game Over">Game Over</span></h2>
+    <p style="color:#aaa;font-size:14px;" id="gameOverSubtitle"><span data-i18n="Final Score">Final Score</span></p>
     <div class="final-score" id="finalScore">0</div>
-    <div class="new-best hidden" id="newBest">🎉 New Record!</div>
-    <button class="btn btn-primary" id="btnRestart">Play Again</button>
-    <button class="btn btn-ghost" id="btnGameOverHome" style="margin-top:8px;">🏠 Back to Home</button>
+    <div class="new-best hidden" id="newBest">🎉 <span data-i18n="🎉 New Record!">New Record!</span></div>
+    <button class="btn btn-primary" id="btnRestart"><span data-i18n="Play Again">Play Again</span></button>
+    <button class="btn btn-ghost" id="btnGameOverHome" style="margin-top:8px;">🏠 <span data-i18n="Back to Home">Back to Home</span></button>
   </div>
 </div>
 
 <!-- 救援弹窗 -->
 <div class="overlay hidden" id="rescueOverlay">
   <div class="overlay-card">
-    <h2>No moves left!</h2>
-    <p style="color:#aaa;font-size:13px;margin-bottom:16px;">Use a power-up to save your game</p>
+    <h2><span data-i18n="No moves left!">No moves left!</span></h2>
+    <p style="color:#aaa;font-size:13px;margin-bottom:16px;"><span data-i18n="Use a power-up to save your game">Use a power-up to save your game</span></p>
     <div class="rescue-actions" id="rescueActions">
       <button class="btn rescue-btn" data-action="bomb">
-        💣 Bomb <span class="rescue-cost" id="rescueBombCost"></span>
+        💣 <span data-i18n="Bomb">Bomb</span> <span class="rescue-cost" id="rescueBombCost"></span>
       </button>
       <button class="btn rescue-btn" data-action="shuffle">
-        🔀 Shuffle <span class="rescue-cost" id="rescueShuffleCost"></span>
+        🔀 <span data-i18n="Shuffle">Shuffle</span> <span class="rescue-cost" id="rescueShuffleCost"></span>
       </button>
       <button class="btn rescue-btn" data-action="undo">
-        ↩️ Undo <span class="rescue-cost" id="rescueUndoCost"></span>
+        ↩️ <span data-i18n="Undo">Undo</span> <span class="rescue-cost" id="rescueUndoCost"></span>
+      </button>
+      <button class="btn rescue-btn" data-action="fishingBan">
+        🚫 <span data-i18n="No Fishing">No Fishing</span> <span class="rescue-cost" id="rescueFishingBanCost"></span>
       </button>
     </div>
-    <button class="btn btn-ghost rescue-giveup" id="btnRescueGiveUp">Give Up</button>
+    <button class="btn btn-ghost rescue-giveup" id="btnRescueGiveUp"><span data-i18n="Give Up">Give Up</span></button>
   </div>
 </div>
 
 <!-- 设置弹窗（模态） -->
 <div class="overlay hidden" id="settingsOverlay">
   <div class="modal-card settings-modal" id="settingsModal">
-    <h3>SETTINGS</h3>
+    <h3><span data-i18n="SETTINGS">SETTINGS</span></h3>
     <div class="setting-row">
       <span class="setting-label">
-        <span class="icon" id="soundIcon">🔊</span> Sound
+        <span class="icon" id="soundIcon">🔊</span> <span data-i18n="Sound">Sound</span>
       </span>
       <label class="toggle-switch" id="soundToggleLabel">
         <input type="checkbox" id="soundToggle">
@@ -1119,37 +1497,45 @@
       </label>
     </div>
     <div class="setting-row">
-      <span class="setting-label"><span class="icon">🎚️</span> Volume</span>
+      <span class="setting-label"><span class="icon">🎚️</span> <span data-i18n="Volume">Volume</span></span>
       <input type="range" id="volumeSlider" min="0" max="100" value="35" class="volume-slider">
     </div>
     <div class="setting-row">
-      <span class="setting-label"><span class="icon">🎨</span> Theme</span>
+      <span class="setting-label"><span class="icon">🌐</span> <span data-i18n="Language">Language</span></span>
+      <select class="skin-select" id="settingLanguage"></select>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label"><span class="icon">📱</span> <span data-i18n="Layout">Layout</span></span>
+      <select class="skin-select" id="settingLayout"></select>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label"><span class="icon">🎨</span> <span data-i18n="Theme">Theme</span></span>
       <select class="skin-select" id="settingThemeSkin"></select>
     </div>
     <div class="setting-row">
-      <span class="setting-label"><span class="icon">🟦</span> Board Theme</span>
+      <span class="setting-label"><span class="icon">🟦</span> <span data-i18n="Board Theme">Board Theme</span></span>
       <select class="skin-select" id="settingBoardSkin"></select>
     </div>
     <div class="setting-row">
-      <span class="setting-label"><span class="icon">🧊</span> Piece Theme</span>
+      <span class="setting-label"><span class="icon">🧊</span> <span data-i18n="Piece Theme">Piece Theme</span></span>
       <select class="skin-select" id="settingPieceSkin"></select>
     </div>
     <div class="setting-row">
-      <span class="setting-label"><span class="icon">👥</span> Guest Outfit</span>
+      <span class="setting-label"><span class="icon">👥</span> <span data-i18n="Guest Outfit">Guest Outfit</span></span>
       <select class="skin-select" id="settingCustomerSkin"></select>
     </div>
-    <button class="btn btn-ghost btn-close" id="btnCloseSettings">Close</button>
+    <button class="btn btn-ghost btn-close" id="btnCloseSettings"><span data-i18n="Close">Close</span></button>
   </div>
 </div>
 
 <!-- 返回确认弹窗 -->
 <div class="overlay hidden" id="confirmBackOverlay">
   <div class="overlay-card" style="padding: 36px 40px;">
-    <h2 style="font-size:22px; color: var(--text); margin-bottom:8px;">Leave Game?</h2>
-    <p style="color: var(--text-dim); font-size:14px; margin-bottom:24px;">Your progress will be lost.</p>
+    <h2 style="font-size:22px; color: var(--text); margin-bottom:8px;"><span data-i18n="Leave Game?">Leave Game?</span></h2>
+    <p style="color: var(--text-dim); font-size:14px; margin-bottom:24px;"><span data-i18n="Your progress will be lost.">Your progress will be lost.</span></p>
     <div style="display:flex; gap:12px;">
-      <button class="btn btn-ghost" id="btnContinue" style="flex:1;">Continue</button>
-      <button class="btn btn-primary" id="btnConfirmBack" style="flex:1;">Return to Home</button>
+      <button class="btn btn-ghost" id="btnContinue" style="flex:1;"><span data-i18n="Continue">Continue</span></button>
+      <button class="btn btn-primary" id="btnConfirmBack" style="flex:1;"><span data-i18n="Return to Home">Return to Home</span></button>
     </div>
   </div>
 </div>
@@ -1157,11 +1543,11 @@
 <!-- 重新开始确认弹窗 -->
 <div class="overlay hidden" id="confirmNewGameOverlay">
   <div class="overlay-card" style="padding: 36px 40px;">
-    <h2 style="font-size:22px; color: var(--text); margin-bottom:8px;">Start New Game?</h2>
-    <p style="color: var(--text-dim); font-size:14px; margin-bottom:24px;">Current score will be saved, then a new game begins.</p>
+    <h2 style="font-size:22px; color: var(--text); margin-bottom:8px;"><span data-i18n="Start New Game?">Start New Game?</span></h2>
+    <p style="color: var(--text-dim); font-size:14px; margin-bottom:24px;"><span data-i18n="Current score will be saved, then a new game begins.">Current score will be saved, then a new game begins.</span></p>
     <div style="display:flex; gap:12px;">
-      <button class="btn btn-ghost" id="btnCancelNewGame" style="flex:1;">Continue</button>
-      <button class="btn btn-primary" id="btnConfirmNewGame" style="flex:1;">New Game</button>
+      <button class="btn btn-ghost" id="btnCancelNewGame" style="flex:1;"><span data-i18n="Continue">Continue</span></button>
+      <button class="btn btn-primary" id="btnConfirmNewGame" style="flex:1;"><span data-i18n="New Game">New Game</span></button>
     </div>
   </div>
 </div>
@@ -1169,60 +1555,92 @@
 <!-- 商店弹窗 -->
 <div class="overlay hidden" id="shopOverlay">
   <div class="modal-card shop-modal">
-    <h3>⚡ Shop</h3>
-    <p class="shop-balance" id="shopBalance">🐚 Your Shells: <span id="shopShells">0</span></p>
+    <h3><span data-i18n="Shop">⚡ Shop</span></h3>
+    <p class="shop-balance" id="shopBalance"><span data-i18n="🐚 Your Shells:">🐚 Your Shells:</span> <span id="shopShells">0</span></p>
 
     <div class="shop-tabs">
-      <button class="shop-tab active" data-tab="powerups">⚡ Power-ups</button>
-      <button class="shop-tab" data-tab="skins">🎨 Skins</button>
+      <button class="shop-tab active" data-tab="powerups">⚡ <span data-i18n="Power-ups">Power-ups</span></button>
+      <button class="shop-tab" data-tab="skins">🎨 <span data-i18n="Skins">Skins</span></button>
     </div>
 
     <div class="shop-tab-content active" data-tab="powerups">
       <div class="shop-items">
         <div class="shop-item">
-          <div class="shop-item-info"><span class="shop-item-icon">💣</span><span>Bomb</span></div>
-          <div class="shop-item-desc">Blast a 3×3 area</div>
+          <div class="shop-item-info"><span class="shop-item-icon">💣</span><span data-i18n="Bomb">Bomb</span></div>
+          <div class="shop-item-desc" data-i18n="Blast a 3×3 area">Blast a 3×3 area</div>
           <button class="btn btn-buy" data-item="bomb" data-cost="50">50 🐚</button>
         </div>
         <div class="shop-item">
-          <div class="shop-item-info"><span class="shop-item-icon">🔀</span><span>Shuffle</span></div>
-          <div class="shop-item-desc">New unplaced pieces</div>
+          <div class="shop-item-info"><span class="shop-item-icon">🔀</span><span data-i18n="Shuffle">Shuffle</span></div>
+          <div class="shop-item-desc" data-i18n="New unplaced pieces">New unplaced pieces</div>
           <button class="btn btn-buy" data-item="shuffle" data-cost="50">50 🐚</button>
         </div>
         <div class="shop-item">
-          <div class="shop-item-info"><span class="shop-item-icon">↩️</span><span>Undo+</span></div>
-          <div class="shop-item-desc">Extra undo step</div>
+          <div class="shop-item-info"><span class="shop-item-icon">↩️</span><span data-i18n="Undo">Undo</span></div>
+          <div class="shop-item-desc" data-i18n="Extra undo step">Extra undo step</div>
           <button class="btn btn-buy" data-item="undoStep" data-cost="50">50 🐚</button>
+        </div>
+        <div class="shop-item">
+          <div class="shop-item-info"><span class="shop-item-icon">🚫</span><span data-i18n="No Fishing">No Fishing</span></div>
+          <div class="shop-item-desc" data-i18n="Remove all seafood (Market)">Remove all seafood (Market)</div>
+          <button class="btn btn-buy" data-item="fishingBan" data-cost="90">90 🐚</button>
         </div>
       </div>
     </div>
 
     <div class="shop-tab-content" data-tab="skins">
       <div class="skin-subtabs">
-        <button class="skin-subtab active" data-skin-cat="board">🟦 Board</button>
-        <button class="skin-subtab" data-skin-cat="piece">🧊 Blocks</button>
-        <button class="skin-subtab" data-skin-cat="customer">👥 Customers</button>
-        <button class="skin-subtab" data-skin-cat="theme">🎨 Theme</button>
+        <button class="skin-subtab active" data-skin-cat="board">🟦 <span data-i18n="Board">Board</span></button>
+        <button class="skin-subtab" data-skin-cat="piece">🧊 <span data-i18n="Blocks">Blocks</span></button>
+        <button class="skin-subtab" data-skin-cat="customer">👥 <span data-i18n="Customers">Customers</span></button>
+        <button class="skin-subtab" data-skin-cat="theme">🎨 <span data-i18n="Theme">Theme</span></button>
       </div>
       <div class="skin-grid" id="skinGrid"></div>
       <p id="skinShellInfo" style="text-align:center;font-size:12px;color:var(--text-dim);margin-top:4px;"></p>
     </div>
 
-    <button class="btn btn-ghost btn-close" id="btnCloseShop">Close</button>
+    <button class="btn btn-ghost btn-close" id="btnCloseShop"><span data-i18n="Close">Close</span></button>
   </div>
 </div>
 
 <!-- 帮助弹窗 -->
 <div class="overlay hidden" id="helpOverlay">
   <div class="modal-card shop-modal" style="max-width:440px;">
-    <h2 style="font-size:20px;margin:0 0 16px 0;text-align:center;">ℹ How to Play</h2>
+    <h2 style="font-size:20px;margin:0 0 16px 0;text-align:center;"><span data-i18n="How to Play">ℹ How to Play</span></h2>
     <div id="helpContent" style="font-size:14px;line-height:1.7;color:var(--text-dim);">
     </div>
-    <button class="btn btn-ghost btn-close" id="btnCloseHelp">Got it</button>
+    <button class="btn btn-ghost btn-close" id="btnCloseHelp"><span data-i18n="Got it">Got it</span></button>
+  </div>
+</div>
+
+<!-- 成就弹窗 -->
+<div class="overlay hidden" id="achievementOverlay">
+  <div class="modal-card shop-modal" style="max-width:520px; max-height:80vh; overflow-y:auto;">
+    <h2 style="font-size:22px;margin:0 0 4px 0;text-align:center;">🏆 <span data-i18n="Achievements">Achievements</span></h2>
+    <div class="shop-tabs" style="margin-bottom:12px;">
+      <button class="shop-tab active ach-tab" data-ach-tab="achievements"><span data-i18n="Achievements">Achievements</span></button>
+      <button class="shop-tab ach-tab" data-ach-tab="eastereggs">???</button>
+    </div>
+    <p id="achProgress" style="text-align:center;font-size:12px;color:var(--text-dim);margin-bottom:16px;">Unlocked 0 / 0</p>
+    <div id="achievementList" style="display:flex;flex-direction:column;gap:6px;"></div>
+    <div id="easterEggList" style="display:none;flex-direction:column;gap:6px;"></div>
+    <button class="btn btn-ghost btn-close" id="btnCloseAchievements"><span data-i18n="Close">Close</span></button>
+  </div>
+</div>
+
+<!-- 成就解锁 Toast -->
+<div class="ach-toast hidden" id="achToast">
+  <div class="ach-toast-icon" id="achToastIcon">🏆</div>
+  <div class="ach-toast-body">
+    <div class="ach-toast-title"><span data-i18n="Achievement Unlocked!">Achievement Unlocked!</span></div>
+    <div class="ach-toast-name" id="achToastName"></div>
+    <div class="ach-toast-desc" id="achToastDesc"></div>
+    <div class="ach-toast-reward" id="achToastReward"></div>
   </div>
 </div>
 
   <audio id="bgm" src="assets/bgm.mp3" loop preload="auto"></audio>
+  <script src="lang.js"></script>
   <script src="game.js"></script>
   </body>
 </html>
