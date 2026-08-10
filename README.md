@@ -7,7 +7,7 @@ A cozy hybrid of **block puzzle** and **market sim**. Place polyomino pieces on 
 ## 🎮 Play
 
 - **[itch.io →](https://chad-bradley.itch.io/tile-and-tide)**
-- **[GitHub Pages →](https://chad-bradley.github.io/Seafood-Market-Block-Puzzle/)**
+- **[GitHub Pages →](https://chad-bradley.github.io/Tile-and-Tide/)**
 - Or open `index.html` in any browser — no build, no server, no dependencies.
 
 ---
